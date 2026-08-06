@@ -17,7 +17,7 @@ const ALBUMS = [
       '/images/gallery/graduation/2025/preview-3.JPG',
     ],
     albumUrl:    'https://photos.app.goo.gl/L35oJag8MJyQgn7y6',   // ← replace with Google Photos link
-    youtubeId:   'PLACEHOLDER_YT_ID',       // ← replace with YouTube video ID
+    youtubeId:   'wFinxDBthng',       // ← replace with YouTube video ID
     videoOnly:   false,
   },
   {
