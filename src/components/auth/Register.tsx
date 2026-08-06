@@ -6,6 +6,9 @@ import Link from 'next/link';
 
 const BELT_OPTIONS = ['White', 'Yellow', 'Green', 'Blue', 'Red', 'Brown', 'Black'];
 
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => CURRENT_YEAR - i);
+
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -21,6 +24,7 @@ export default function Register() {
     confirmPassword: '',
     registrationType: 'new' as 'new' | 'training' | 'returning',
     previousBelt: '',
+    yearJoined: '',
     gapReason: '',
     emergencyName: '',
     emergencyPhone: '',
@@ -366,25 +370,45 @@ export default function Register() {
                   </div>
                 </div>
 
-                {/* Previous belt — only for training / returning */}
+                {/* Previous belt + Year joined — only for training / returning */}
                 {(form.registrationType === 'training' || form.registrationType === 'returning') && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    <label style={{
-                      fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
-                      color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                    }}>Current / Previous Belt</label>
-                    <select
-                      className="reg-select"
-                      value={form.previousBelt}
-                      onChange={(e) => handleChange('previousBelt', e.target.value)}
-                    >
-                      <option value="">Select a belt</option>
-                      {BELT_OPTIONS.map((belt) => (
-                        <option key={belt} value={belt}>{belt}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      <label style={{
+                        fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                        color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                      }}>Current / Previous Belt</label>
+                      <select
+                        className="reg-select"
+                        value={form.previousBelt}
+                        onChange={(e) => handleChange('previousBelt', e.target.value)}
+                      >
+                        <option value="">Select a belt</option>
+                        {BELT_OPTIONS.map((belt) => (
+                          <option key={belt} value={belt}>{belt}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      <label style={{
+                        fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                        color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                      }}>Year You Joined EagleGlow</label>
+                      <select
+                        className="reg-select"
+                        value={form.yearJoined}
+                        onChange={(e) => handleChange('yearJoined', e.target.value)}
+                      >
+                        <option value="">Select a year</option>
+                        {YEAR_OPTIONS.map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
                 )}
 
                 {/* Gap reason — only for returning, optional */}
