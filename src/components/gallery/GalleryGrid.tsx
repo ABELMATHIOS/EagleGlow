@@ -23,7 +23,7 @@ const ALBUMS = [
   {
     id:          'grad-2023',
     category:    'graduation',
-    title:       '2023 / 2015 E.C.',
+    title:       '2022 / 2014 E.C.',
     subtitle:    'Graduation Ceremony',
     previews:    [],
     albumUrl:    null,
@@ -33,7 +33,7 @@ const ALBUMS = [
   {
     id:          'grad-2022',
     category:    'graduation',
-    title:       '2022 / 2014 E.C.',
+    title:       '2023 / 2015 E.C.',
     subtitle:    'Graduation Ceremony',
     previews:    [
       '/images/gallery/graduation/2022/preview-1.jpg',
@@ -41,7 +41,7 @@ const ALBUMS = [
       '/images/gallery/graduation/2022/preview-3.jpg',
     ],
     albumUrl:    'https://photos.app.goo.gl/XUqujfQ3ow4RsddZ6',
-    youtubeId:   'PLACEHOLDER_YT_ID',
+    youtubeId:   'srAi3LEefQg',
     videoOnly:   false,
   },
   {
