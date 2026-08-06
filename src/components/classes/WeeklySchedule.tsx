@@ -172,7 +172,7 @@ export default function WeeklySchedule() {
           }}>
             <span style={{ fontSize: '16px' }}>🥋</span>
             <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.55)', fontFamily: 'Arial, sans-serif', lineHeight: 1.6 }}>
-              <strong style={{ color: 'rgba(255,255,255,0.8)' }}>Master Endale Melse</strong> personally leads all Wushu sessions. Fitness classes are led by certified instructors under his supervision.
+              <strong style={{ color: 'rgba(255,255,255,0.8)' }}>Master Endale Melse</strong> personally leads all sessions.
             </p>
           </div>
         </div>
