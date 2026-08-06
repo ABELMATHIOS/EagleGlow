@@ -7,8 +7,8 @@ import Link from "next/link";
 const photos = [
   { src: "/images/moment-1.jpg", alt: "EagleGlow training moment 1" },
   { src: "/images/moment-2.jpg", alt: "EagleGlow training moment 2" },
-  { src: "/images/moment-3.jpg", alt: "EagleGlow training moment 3" },
-  { src: "/images/moment-4.jpg", alt: "EagleGlow training moment 4" },
+  { src: "/images/moment-3.JPG", alt: "EagleGlow training moment 3" },
+  { src: "/images/moment-4.JPG", alt: "EagleGlow training moment 4" },
 ];
 
 export default function OurMoments() {

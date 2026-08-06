@@ -12,16 +12,16 @@ const ALBUMS = [
     title:       '2025 / 2017 E.C.',
     subtitle:    'Graduation Ceremony',
     previews:    [
-      '/images/gallery/graduation/2025/preview-1.jpg',
-      '/images/gallery/graduation/2025/preview-2.jpg',
-      '/images/gallery/graduation/2025/preview-3.jpg',
+      '/images/gallery/graduation/2025/preview-1.JPG',
+      '/images/gallery/graduation/2025/preview-2.JPG',
+      '/images/gallery/graduation/2025/preview-3.JPG',
     ],
     albumUrl:    'https://photos.app.goo.gl/L35oJag8MJyQgn7y6',   // ← replace with Google Photos link
     youtubeId:   'PLACEHOLDER_YT_ID',       // ← replace with YouTube video ID
     videoOnly:   false,
   },
   {
-    id:          'grad-2023',
+    id:          'grad-2022',
     category:    'graduation',
     title:       '2022 / 2014 E.C.',
     subtitle:    'Graduation Ceremony',
@@ -31,14 +31,14 @@ const ALBUMS = [
     videoOnly:   true,
   },
   {
-    id:          'grad-2022',
+    id:          'grad-2023',
     category:    'graduation',
     title:       '2023 / 2015 E.C.',
     subtitle:    'Graduation Ceremony',
     previews:    [
-      '/images/gallery/graduation/2022/preview-1.jpg',
-      '/images/gallery/graduation/2022/preview-2.jpg',
-      '/images/gallery/graduation/2022/preview-3.jpg',
+      '/images/gallery/graduation/2023/preview-1.JPG',
+      '/images/gallery/graduation/2023/preview-2.JPG',
+      '/images/gallery/graduation/2023/preview-3.JPG',
     ],
     albumUrl:    'https://photos.app.goo.gl/XUqujfQ3ow4RsddZ6',
     youtubeId:   'srAi3LEefQg',
@@ -50,9 +50,9 @@ const ALBUMS = [
     title:       '2020 / 2012 E.C.',
     subtitle:    'Graduation Ceremony',
     previews:    [
-      '/images/gallery/graduation/2020/preview-1.jpg',
-      '/images/gallery/graduation/2020/preview-2.jpg',
-      '/images/gallery/graduation/2020/preview-3.jpg',
+      '/images/gallery/graduation/2020/preview-1.JPG',
+      '/images/gallery/graduation/2020/preview-2.JPG',
+      '/images/gallery/graduation/2020/preview-3.JPG',
     ],
     albumUrl:    'https://photos.app.goo.gl/cY4y3zkN1wAYLHds5',
     youtubeId:   'PLACEHOLDER_YT_ID',
@@ -64,9 +64,9 @@ const ALBUMS = [
     title:       '2017 / 2009 E.C.',
     subtitle:    'Graduation Ceremony',
     previews:    [
-      '/images/gallery/graduation/2017/preview-1.jpg',
-      '/images/gallery/graduation/2017/preview-2.jpg',
-      '/images/gallery/graduation/2017/preview-3.jpg',
+      '/images/gallery/graduation/2017/preview-1.JPG',
+      '/images/gallery/graduation/2017/preview-2.JPG',
+      '/images/gallery/graduation/2017/preview-3.JPG',
     ],
     albumUrl:    'https://photos.app.goo.gl/YFtG7NCTCJqubAyJ8',
     youtubeId:   null,                      // no video for this one
