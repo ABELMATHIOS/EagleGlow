@@ -28,6 +28,7 @@ export default function Register() {
     gapReason: '',
     emergencyName: '',
     emergencyPhone: '',
+    healthNotes: '',
   });
 
   const handleChange = (field: string, value: string) => {
@@ -37,6 +38,10 @@ export default function Register() {
   const handleSubmit = (e: React.MouseEvent) => {
     e.preventDefault();
     // Phase 6 — Supabase + NextAuth logic goes here
+    // NOTE: healthNotes is sensitive information — once a real backend exists,
+    // this should NOT be visible in general member lists/admin views the same
+    // way name/phone/email are. Scope read access to instructors/admins only
+    // (e.g. via Supabase RLS), not exposed broadly.
     setSubmitted(true);
   };
 
@@ -63,6 +68,28 @@ export default function Register() {
           color: rgba(255,255,255,0.25);
         }
         .reg-input:focus {
+          border-color: rgba(201,168,76,0.4);
+          background: rgba(201,168,76,0.04);
+        }
+
+        .reg-textarea {
+          width: 100%;
+          background: rgba(255,255,255,0.04);
+          border: 0.5px solid rgba(255,255,255,0.08);
+          border-radius: 10px;
+          padding: 13px 14px;
+          color: #fff;
+          font-family: Inter, sans-serif;
+          font-size: 14px;
+          outline: none;
+          resize: vertical;
+          min-height: 72px;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .reg-textarea::placeholder {
+          color: rgba(255,255,255,0.25);
+        }
+        .reg-textarea:focus {
           border-color: rgba(201,168,76,0.4);
           background: rgba(201,168,76,0.04);
         }
@@ -191,6 +218,13 @@ export default function Register() {
           height: 1px;
           background: rgba(255,255,255,0.06);
           margin: 4px 0 2px;
+        }
+
+        .field-note {
+          font-size: 11px;
+          color: rgba(255,255,255,0.28);
+          margin-top: 2px;
+          line-height: 1.5;
         }
       `}</style>
 
@@ -521,6 +555,27 @@ export default function Register() {
                     autoComplete="tel"
                     required
                   />
+                </div>
+
+                {/* Health / medical notes (optional) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <label style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                    color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                  }}>
+                    Health / Medical Notes <span style={{ textTransform: 'none', fontWeight: 400, opacity: 0.6 }}>(optional)</span>
+                  </label>
+                  <textarea
+                    className="reg-textarea"
+                    placeholder="Any conditions, injuries, or health information instructors should be aware of"
+                    value={form.healthNotes}
+                    onChange={(e) => handleChange('healthNotes', e.target.value)}
+                    rows={3}
+                  />
+                  <p className="field-note">
+                    Shared only with instructors — used to keep training safe for you.
+                  </p>
                 </div>
 
                 {/* Password */}

@@ -19,6 +19,7 @@ const MEMBER = {
   phone: "+251-911-234-567",
   emergencyName: "Selam Tadesse",
   emergencyPhone: "+251-911-987-654",
+  healthNotes: "",
   joinDate: "March 2022",
   beltLevel: 3, // Green belt
   avatar: null as string | null, // Will be a real photo URL
@@ -36,6 +37,7 @@ export default function ProfilePage() {
     phone: MEMBER.phone,
     emergencyName: MEMBER.emergencyName,
     emergencyPhone: MEMBER.emergencyPhone,
+    healthNotes: MEMBER.healthNotes,
     avatar: MEMBER.avatar,
   });
   const [draft, setDraft] = useState(saved);
@@ -68,6 +70,8 @@ export default function ProfilePage() {
     // Once Supabase is wired up, this should call something like
     // supabase.from('users').update({...draft}).eq('id', currentUserId)
     // and surface real server-side errors here instead of always succeeding.
+    // healthNotes specifically is sensitive — restrict read access to
+    // instructors/admins only (e.g. via RLS), not general member views.
     setSaved(draft);
     setEditing(false);
     setProfileSaveSuccess(true);
@@ -222,6 +226,23 @@ export default function ProfilePage() {
         }
         .edit-input:focus { border-color: #C9A84C; }
         .edit-input.invalid { border-color: #EF4444; }
+
+        .edit-textarea {
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(201,168,76,0.3);
+          border-radius: 8px;
+          color: #e5e5e5;
+          padding: 10px 14px;
+          font-family: 'Inter', sans-serif;
+          font-size: 14px;
+          width: 100%;
+          min-height: 72px;
+          resize: vertical;
+          outline: none;
+          transition: border-color 0.2s;
+          box-sizing: border-box;
+        }
+        .edit-textarea:focus { border-color: #C9A84C; }
 
         .field-error {
           font-size: 11px;
@@ -669,6 +690,35 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* ── Health / Medical Notes — same sensitive-field grouping as Register ── */}
+          <div style={{ marginTop: "28px", paddingTop: "24px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <p style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: "11px",
+              letterSpacing: "2px",
+              color: "#888",
+              textTransform: "uppercase",
+              margin: "0 0 20px",
+            }}>Health / Medical Notes</p>
+
+            {editing ? (
+              <>
+                <textarea
+                  className="edit-textarea"
+                  value={draft.healthNotes}
+                  onChange={e => setDraft(d => ({ ...d, healthNotes: e.target.value }))}
+                  placeholder="Any conditions, injuries, or health information instructors should be aware of"
+                  rows={3}
+                />
+                <p className="field-hint">Shared only with instructors — used to keep training safe for you.</p>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: "15px", color: saved.healthNotes ? "#ccc" : "#555", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                {saved.healthNotes || "None on file."}
+              </p>
+            )}
           </div>
 
           {editing && (

@@ -10,6 +10,7 @@ export interface User {
   phone?:                   string;
   emergency_contact_name?:  string;
   emergency_contact_phone?: string;
+  health_notes?:            string; // sensitive — restrict read access to admin/coach only
   photo_url?:               string;
   belt_id?:                 string;
   role:                     Role;
