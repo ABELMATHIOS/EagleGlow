@@ -17,8 +17,8 @@ type Tutorial = {
   id: string;              // unique across ALL belts, e.g. 'white-1'
   belt: BeltId;
   title: string;
-  durationMinutes: number;
-  description: string;
+  durationMinutes?: number; // omit for instructor-led entries with no video
+  description?: string;
   completed: boolean;
   category: Category;
   videoId?: string;        // YouTube video ID — omit for instructor-led, no-video sessions
@@ -38,7 +38,7 @@ const BELTS: Record<BeltId, { name: string; color: string }> = {
 };
 
 const CATEGORY_LABEL: Record<Category, string> = {
-  taolu:       'Taolu Forms & Weapons',
+  taolu:       'Taolu / Forms',
   kicks:       'Kicks',
   sanda:       'Sanda / Fight Skill',
   gymnastics:  'Gymnastics',
@@ -49,74 +49,95 @@ const CATEGORY_LABEL: Record<Category, string> = {
 // Static grading reference — NOT computed from watch progress, no admin
 // connection. The instructor gives the real result in person; this is here
 // so students know what they're being tested on and roughly what's expected.
-// "Behavior" has no tutorials/videos — it's assessed directly by the instructor.
+// "Discipline" has no tutorials/videos — it's assessed directly by the
+// instructor, so it carries a `display` string instead of a `minPercent`.
 // Each category has its OWN required minimum — not blended into one combined
 // score. A student needs 50%+ in Taolu AND 50%+ in Kicks AND 50%+ in Sanda,
 // etc. — a weak category can't be offset by a strong one. All default to the
 // same 50% bar here; bump any individual category's number if your program
 // wants a specific one to be stricter (e.g. Kicks at 70%).
-const GRADING_REQUIREMENTS: Record<BeltId, { category: string; minPercent: number }[]> = {
+const GRADING_REQUIREMENTS: Record<BeltId, { category: string; minPercent?: number; display?: string }[]> = {
   white: [
-    { category: 'Taolu Forms & Weapons',     minPercent: 50 },
-    { category: 'Kicks', minPercent: 50 },
-    { category: 'Behavior',                  minPercent: 50 },
+    { category: 'Taolu / Forms',       minPercent: 50 },
+    { category: 'Kicks',               minPercent: 50 },
+    { category: 'Sanda / Fight Skill', minPercent: 50 },
+    { category: 'Gymnastics',          minPercent: 50 },
+    { category: 'Flexibility',         minPercent: 50 },
+    { category: 'Discipline',          display: 'Instructor Assessed' },
   ],
   yellow: [
-    { category: 'Taolu Forms & Weapons',     minPercent: 50 },
-    { category: 'Kicks', minPercent: 50 },
-    { category: 'Gymnastics',                minPercent: 50 },
-    { category: 'Behavior',                  minPercent: 50 },
+    { category: 'Taolu / Forms',       minPercent: 50 },
+    { category: 'Kicks',               minPercent: 50 },
+    { category: 'Sanda / Fight Skill', minPercent: 50 },
+    { category: 'Gymnastics',          minPercent: 50 },
+    { category: 'Flexibility',         minPercent: 50 },
+    { category: 'Discipline',          display: 'Instructor Assessed' },
   ],
   green: [
-    { category: 'Taolu Forms & Weapons',     minPercent: 50 },
-    { category: 'Kicks', minPercent: 50 },
-    { category: 'Sanda / Fight Skill',       minPercent: 50 },
-    { category: 'Gymnastics',                minPercent: 50 },
-    { category: 'Flexibility',               minPercent: 50 },
-    { category: 'Behavior',                  minPercent: 50 },
+    { category: 'Taolu / Forms',       minPercent: 50 },
+    { category: 'Kicks',               minPercent: 50 },
+    { category: 'Sanda / Fight Skill', minPercent: 50 },
+    { category: 'Gymnastics',          minPercent: 50 },
+    { category: 'Flexibility',         minPercent: 50 },
+    { category: 'Discipline',          display: 'Instructor Assessed' },
   ],
   blue: [
-    { category: 'Taolu Forms & Weapons',     minPercent: 50 },
-    { category: 'Kicks',                     minPercent: 50 },
-    { category: 'Sanda / Fight Skill',       minPercent: 50 },
-    { category: 'Gymnastics',                minPercent: 50 },
-    { category: 'Flexibility',               minPercent: 50 },
-    { category: 'Behavior',                  minPercent: 50 },
+    { category: 'Taolu / Forms',       minPercent: 50 },
+    { category: 'Kicks',               minPercent: 50 },
+    { category: 'Sanda / Fight Skill', minPercent: 50 },
+    { category: 'Gymnastics',          minPercent: 50 },
+    { category: 'Flexibility',         minPercent: 50 },
+    { category: 'Discipline',          display: 'Instructor Assessed' },
   ],
   red: [
-    { category: 'Taolu Forms & Weapons',     minPercent: 50 },
-    { category: 'Kicks',                     minPercent: 50 },
-    { category: 'Sanda / Fight Skill',       minPercent: 50 },
-    { category: 'Gymnastics',                minPercent: 50 },
-    { category: 'Flexibility',               minPercent: 50 },
-    { category: 'Behavior',                  minPercent: 50 },
+    { category: 'Taolu / Forms',       minPercent: 50 },
+    { category: 'Kicks',               minPercent: 50 },
+    { category: 'Sanda / Fight Skill', minPercent: 50 },
+    { category: 'Gymnastics',          minPercent: 50 },
+    { category: 'Flexibility',         minPercent: 50 },
+    { category: 'Discipline',          display: 'Instructor Assessed' },
   ],
   brown: [
-    { category: 'Taolu Forms & Weapons',     minPercent: 50 },
-    { category: 'Kicks',                     minPercent: 50 },
-    { category: 'Sanda / Fight Skill',       minPercent: 50 },
-    { category: 'Gymnastics',                minPercent: 50 },
-    { category: 'Flexibility',               minPercent: 50 },
-    { category: 'Behavior',                  minPercent: 50 },
+    { category: 'Taolu / Forms',       minPercent: 50 },
+    { category: 'Kicks',               minPercent: 50 },
+    { category: 'Sanda / Fight Skill', minPercent: 50 },
+    { category: 'Gymnastics',          minPercent: 50 },
+    { category: 'Flexibility',         minPercent: 50 },
+    { category: 'Discipline',          display: 'Instructor Assessed' },
   ],
   black: [
-    { category: 'Taolu Forms & Weapons',     minPercent: 50 },
-    { category: 'Kicks',                     minPercent: 50 },
-    { category: 'Sanda / Fight Skill',       minPercent: 50 },
-    { category: 'Gymnastics',                minPercent: 50 },
-    { category: 'Flexibility',               minPercent: 50 },
-    { category: 'Behavior',                  minPercent: 50 },
+    { category: 'Taolu / Forms',       minPercent: 50 },
+    { category: 'Kicks',               minPercent: 50 },
+    { category: 'Sanda / Fight Skill', minPercent: 50 },
+    { category: 'Gymnastics',          minPercent: 50 },
+    { category: 'Flexibility',         minPercent: 50 },
+    { category: 'Discipline',          display: 'Instructor Assessed' },
   ],
 };
 
 const TUTORIALS: Tutorial[] = [
   // White
-  { id: 'white-1', belt: 'white', title: 'Introduction to Wushu',   durationMinutes: 12, description: 'Overview of Shaolin Wushu history and principles.',    completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
-  { id: 'white-2', belt: 'white', title: 'Basic Stance & Footwork', durationMinutes: 18, description: 'Learn the foundational stances used in all forms.',     completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
-  { id: 'white-3', belt: 'white', title: 'Basic Hand Techniques',   durationMinutes: 20, description: 'Punches, palms, and basic strikes.',                     completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
-  { id: 'white-4', belt: 'white', title: 'Basic Kick Techniques',   durationMinutes: 22, description: 'Front kick, side kick, and roundhouse fundamentals.',    completed: true, category: 'kicks',   videoId: 'dQw4w9WgXcQ' },
-  { id: 'white-5', belt: 'white', title: 'Breathing & Meditation',  durationMinutes: 15, description: 'Wushu breathing methods for focus and endurance.',       completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
-  { id: 'white-6', belt: 'white', title: 'White Belt Form (Taolu)', durationMinutes: 30, description: 'Full white belt form combining all techniques learned.', completed: true, category: 'taolu',   videoId: 'dQw4w9WgXcQ' },
+  { id: 'white-1', belt: 'white', title: 'Basic Forms',  completed: true, category: 'general'},
+  { id: 'white-2', belt: 'white', title: 'Basic Stance', durationMinutes: 12, description: 'Master the six basic Wushu stances: Horse stance, Bow stance, Drop stance, Empty stance, Resting stance, and Sitting Stance.', completed: true, category: 'general', videoId: 'LiEMQUIPPQg' },
+  { id: 'white-3', belt: 'white', title: ' 7 Techniques ', completed: true, category: 'general'},
+  { id: 'white-4', belt: 'white', title: '12 Techniques', completed: true, category: 'general'},
+  { id: 'white-5', belt: 'white', title: 'Wushu Forms 1, 2, 3, 4',  completed: true, category: 'taolu'},
+  { id: 'white-6', belt: 'white', title: '16-Form Changquan', durationMinutes: 30, description: 'Tip: Slow down the video playback speed to 0.5x to master the movements step-by-step!', completed: true, category: 'taolu',   videoId: 'ezR_S-38Tp4' },
+  { id: 'white-7', belt: 'white', title: '16-Form Gunshu ', durationMinutes: 2, completed: true, category: 'taolu', videoId: 'rxrNUEB6ZRc' },
+  { id: 'white-8', belt: 'white', title: 'Forward Roll', durationMinutes: 6, description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!', completed: true, category: 'gymnastics', videoId: 'sMlxHIC3yLQ' },
+  { id: 'white-9', belt: 'white', title: 'Pike Forward Roll', durationMinutes: 0.3, description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!', completed: true, category: 'gymnastics', videoId: '8W5UCL15DpQ' },
+  { id: 'white-10', belt: 'white', title: 'Forward Roll Variations',  completed: true, category: 'gymnastics',},
+  { id: 'white-11', belt: 'white', title: 'Handstand Forward Roll Variations', durationMinutes: 1, description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!', completed: true, category: 'gymnastics', videoId: '4Aaz3R8P66Y' },
+  { id: 'white-12', belt: 'white', title: 'Four Fundamental Wushu Kicks', durationMinutes: 10, description: 'Master the four fundamental Wushu kicks: Front stretch kick, Side stretch kick, Inside circle kick, and Outside circle kick.', completed: true, category: 'kicks', videoId: '6RBf9qkdkQQ' },
+  { id: 'white-13', belt: 'white', title: 'Flying Front Kick', durationMinutes: 3, completed: true, category: 'kicks', videoId: 'ATaeHVDs9BA' },
+  { id: 'white-14', belt: 'white', title: 'Cartwheel', durationMinutes: 3, completed: true, category: 'kicks', videoId: 'GAbIx6oQAv4' },
+  { id: 'white-15', belt: 'white', title: 'Round Kick', durationMinutes: 5, completed: true, category: 'kicks', videoId: 'BEYGp-npoHc' },
+  { id: 'white-16', belt: 'white', title: 'Butterfly Kick (B-Kick)', durationMinutes: 1, completed: true, category: 'kicks', videoId: 'zPmukqlQnVM' },
+  { id: 'white-17', belt: 'white', title: 'Hook Kick ', durationMinutes: 10, completed: true, category: 'kicks', videoId: 'rw7EvAo-0Og' },
+  { id: 'white-18', belt: 'white', title: 'Punch Techniques ', durationMinutes: 18, completed: true, category: 'sanda', videoId: 'QjuQlw5FYuk' },
+  { id: 'white-19', belt: 'white', title: 'Sanda/fight Techniques ', durationMinutes: 10, completed: true, category: 'sanda', videoId: '9jErNk5igVA' },
+
+
 
   // Yellow
   { id: 'yellow-1', belt: 'yellow', title: 'Intermediate Stances',     durationMinutes: 18, description: 'Horse stance, bow stance, and transitions.',       completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
@@ -166,8 +187,8 @@ const TUTORIALS: Tutorial[] = [
   { id: 'black-5', belt: 'black', title: 'Flexibility Training',    durationMinutes: 20, description: 'Placeholder — replace with real content.', completed: false, category: 'flexibility', videoId: 'dQw4w9WgXcQ' },
 ];
 
-function formatDuration(minutes: number): string {
-  return `${minutes} min`;
+function formatDuration(minutes?: number): string {
+  return minutes != null ? `${minutes} min` : '';
 }
 
 /* ============================================================
@@ -223,7 +244,10 @@ function RequirementsPanel({
 }: {
   beltName: string;
   beltColor: string;
-  requirements: { category: string; minPercent: number }[];
+  // minPercent and display are BOTH optional: a row has one or the other.
+  // Discipline-style rows (instructor-assessed, no video/score) carry only
+  // `display`; scored categories carry only `minPercent`.
+  requirements: { category: string; minPercent?: number; display?: string }[];
 }) {
   if (requirements.length === 0) return null;
   return (
@@ -249,7 +273,9 @@ function RequirementsPanel({
         {requirements.map((r) => (
           <div className="req-row" key={r.category}>
             <span className="req-name">{r.category}</span>
-            <span className="req-percent">{r.minPercent}%+</span>
+            <span className="req-percent">
+              {r.minPercent != null ? `${r.minPercent}%+` : r.display}
+            </span>
           </div>
         ))}
       </div>
@@ -283,7 +309,6 @@ function FilterChips({
           className={`filter-chip${active === cat ? ' selected' : ''}`}
           onClick={() => onSelect(cat)}
         >
-          <CategoryIcon category={cat} size={13} />
           {CATEGORY_LABEL[cat]}
         </button>
       ))}
@@ -332,12 +357,15 @@ function TutorialRow({
         {/* Info */}
         <span className="tutorial-info">
           <span className="tutorial-title">{tutorial.title}</span>
-          {isActive && <span className="tutorial-description">{tutorial.description}</span>}
+          {isActive && tutorial.description && (
+            <span className="tutorial-description">{tutorial.description}</span>
+          )}
           <span className="tutorial-meta">
-            {formatDuration(tutorial.durationMinutes)}{!hasVideo && ' · In-person session'}
+            {hasVideo && tutorial.durationMinutes != null
+              ? formatDuration(tutorial.durationMinutes)
+              : 'In-person session'}
           </span>
           <span className="cat-tag">
-            <CategoryIcon category={tutorial.category} size={11} />
             {CATEGORY_LABEL[tutorial.category]}
           </span>
         </span>
@@ -398,8 +426,10 @@ export default function TutorialDetail({ belt }: { belt: string }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
 
-  const presentCategories = (Object.keys(CATEGORY_LABEL) as Category[])
-    .filter((cat) => tutorials.some((t) => t.category === cat));
+  // All categories, every belt — not filtered down to only categories that
+  // currently have a tutorial for this belt. Belts with no content in a
+  // category will just show an empty list when that chip is selected.
+  const presentCategories = Object.keys(CATEGORY_LABEL) as Category[];
 
   const overallCompleted = tutorials.filter((t) => t.completed).length;
 
@@ -648,6 +678,18 @@ export default function TutorialDetail({ belt }: { belt: string }) {
               />
             ))}
           </div>
+
+          {visibleTutorials.length === 0 && tutorials.length > 0 && (
+            <div style={{
+              textAlign: 'center', padding: '40px 24px',
+              background: '#111111', border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: 20,
+            }}>
+              <p style={{ fontFamily: 'Inter, sans-serif', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
+                No tutorials in this category yet for this belt.
+              </p>
+            </div>
+          )}
 
           {tutorials.length === 0 && (
             <div style={{
