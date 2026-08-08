@@ -6,10 +6,10 @@ const BELTS = [
   { name: 'White',  slug: 'white',  color: '#FFFFFF', textColor: '#111', tutorials: 6,  completed: 6,  unlocked: true  },
   { name: 'Yellow', slug: 'yellow', color: '#FFD700', textColor: '#111', tutorials: 6,  completed: 6,  unlocked: true  },
   { name: 'Green',  slug: 'green',  color: '#2ECC71', textColor: '#111', tutorials: 6,  completed: 4,  unlocked: true  },
-  { name: 'Blue',   slug: 'blue',   color: '#3498DB', textColor: '#fff', tutorials: 8,  completed: 0,  unlocked: false },
-  { name: 'Red',    slug: 'red',    color: '#E74C3C', textColor: '#fff', tutorials: 10, completed: 0,  unlocked: false },
-  { name: 'Brown',  slug: 'brown',  color: '#8B4513', textColor: '#fff', tutorials: 10, completed: 0,  unlocked: false },
-  { name: 'Black',  slug: 'black',  color: '#C9A84C', textColor: '#111', tutorials: 12, completed: 0,  unlocked: false, isBlack: true },
+  { name: 'Blue',   slug: 'blue',   color: '#3498DB', textColor: '#fff', tutorials: 8,  completed: 0,  unlocked: true },
+  { name: 'Red',    slug: 'red',    color: '#E74C3C', textColor: '#fff', tutorials: 10, completed: 0,  unlocked: true },
+  { name: 'Brown',  slug: 'brown',  color: '#8B4513', textColor: '#fff', tutorials: 10, completed: 0,  unlocked: true },
+  { name: 'Black',  slug: 'black',  color: '#C9A84C', textColor: '#111', tutorials: 12, completed: 0,  unlocked: true, isBlack: true },
 ];
 
 function SectionLabel({ text }: { text: string }) {
