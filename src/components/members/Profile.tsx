@@ -1,28 +1,21 @@
 "use client";
 
 import { useState, useRef, ChangeEvent } from "react";
+import { BELTS, getBeltById } from "@/src/data/belts";
+import { CURRENT_USER } from "@/src/data/members";
 
-const BELTS = [
-  { level: 1, name: "White",  color: "#FFFFFF", shadow: "rgba(255,255,255,0.4)" },
-  { level: 2, name: "Yellow", color: "#FFD700", shadow: "rgba(255,215,0,0.4)" },
-  { level: 3, name: "Green",  color: "#22C55E", shadow: "rgba(34,197,94,0.4)" },
-  { level: 4, name: "Blue",   color: "#3B82F6", shadow: "rgba(59,130,246,0.4)" },
-  { level: 5, name: "Red",    color: "#EF4444", shadow: "rgba(239,68,68,0.4)" },
-  { level: 6, name: "Brown",  color: "#8B4513", shadow: "rgba(139,69,19,0.4)" },
-  { level: 7, name: "Black",  color: "#1a1a1a", shadow: "rgba(201,168,76,0.5)", border: "#C9A84C" },
-];
-
-// Mock member data — replace with real Supabase data later
+// Mock member data — replace with real Supabase data later. Pulled from the
+// shared CURRENT_USER record so Profile and Dashboard can't drift apart.
 const MEMBER = {
-  name: "Yonas Tadesse",
-  email: "yonas@gmail.com",
-  phone: "+251-911-234-567",
-  emergencyName: "Selam Tadesse",
-  emergencyPhone: "+251-911-987-654",
-  healthNotes: "",
-  joinDate: "March 2022",
-  beltLevel: 3, // Green belt
-  avatar: null as string | null, // Will be a real photo URL
+  name: CURRENT_USER.name,
+  email: CURRENT_USER.email,
+  phone: CURRENT_USER.phone ?? "",
+  emergencyName: CURRENT_USER.emergencyContactName ?? "",
+  emergencyPhone: CURRENT_USER.emergencyContactPhone ?? "",
+  healthNotes: CURRENT_USER.healthNotes ?? "",
+  joinDate: new Date(CURRENT_USER.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+  beltOrder: getBeltById(CURRENT_USER.beltId ?? "belt-1")!.order,
+  avatar: (CURRENT_USER.photoUrl ?? null) as string | null,
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -45,8 +38,8 @@ export default function ProfilePage() {
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentBelt = BELTS.find((b) => b.level === MEMBER.beltLevel)!;
-  const nextBelt = BELTS.find((b) => b.level === MEMBER.beltLevel + 1);
+ const currentBelt = BELTS.find((b) => b.order === MEMBER.beltOrder)!;
+  const nextBelt = BELTS.find((b) => b.order === MEMBER.beltOrder + 1);
 
   const emailValid = EMAIL_RE.test(draft.email);
   const phoneValid = PHONE_RE.test(draft.phone);
@@ -475,10 +468,10 @@ export default function ProfilePage() {
               }}
             >
               {BELTS.map((belt, i) => {
-                const isAchieved = belt.level <= MEMBER.beltLevel;
-                const isCurrent = belt.level === MEMBER.beltLevel;
+                const isAchieved = belt.order <= MEMBER.beltOrder;
+                const isCurrent = belt.order === MEMBER.beltOrder;
                 return (
-                  <div key={belt.level} style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, scrollSnapAlign: "center" }}>
+                  <div key={belt.order} style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, scrollSnapAlign: "center" }}>
                     <div
                       className="belt-pip"
                       title={belt.name}
@@ -489,7 +482,7 @@ export default function ProfilePage() {
                         background: isAchieved ? belt.color : "rgba(255,255,255,0.05)",
                         border: isCurrent
                           ? `3px solid #C9A84C`
-                          : belt.level === 7
+                          : belt.order === 7
                           ? `2px solid ${belt.border || belt.color}`
                           : `2px solid ${isAchieved ? belt.color : "rgba(255,255,255,0.1)"}`,
                         boxShadow: isCurrent ? `0 0 20px ${belt.shadow}, 0 0 40px ${belt.shadow}` : isAchieved ? `0 0 8px ${belt.shadow}` : "none",
@@ -504,16 +497,16 @@ export default function ProfilePage() {
                         <span style={{ fontSize: "18px" }}>🥋</span>
                       )}
                       {!isCurrent && isAchieved && (
-                        <span style={{ fontSize: "14px", color: belt.level === 1 ? "#000" : "#000" }}>✓</span>
+                        <span style={{ fontSize: "14px", color: belt.order === 1 ? "#000" : "#000" }}>✓</span>
                       )}
                       {!isAchieved && (
-                        <span style={{ fontSize: "12px", color: "#444" }}>{belt.level}</span>
+                        <span style={{ fontSize: "12px", color: "#444" }}>{belt.order}</span>
                       )}
                     </div>
                     {i < BELTS.length - 1 && (
                       <div style={{
                         width: "24px", height: "2px", flexShrink: 0,
-                        background: belt.level < MEMBER.beltLevel
+                        background: belt.order < MEMBER.beltOrder
                           ? "linear-gradient(90deg, #C9A84C, rgba(201,168,76,0.3))"
                           : "rgba(255,255,255,0.08)",
                         borderRadius: "2px",

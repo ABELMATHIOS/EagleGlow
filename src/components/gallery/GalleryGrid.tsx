@@ -2,109 +2,12 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { getPublishedAlbums } from '@/src/data/gallery';
 
-// ── Data ─────────────────────────────────────────────────────
-const ALBUMS = [
-  // ── Graduation ──
-  {
-    id:          'grad-2025',
-    category:    'graduation',
-    title:       '2025 / 2017 E.C.',
-    subtitle:    'Graduation Ceremony',
-    previews:    [
-      '/images/gallery/graduation/2025/preview-1.JPG',
-      '/images/gallery/graduation/2025/preview-2.JPG',
-      '/images/gallery/graduation/2025/preview-3.JPG',
-    ],
-    albumUrl:    'https://photos.app.goo.gl/L35oJag8MJyQgn7y6',   // ← replace with Google Photos link
-    youtubeId:   'wFinxDBthng',       // ← replace with YouTube video ID
-    videoOnly:   false,
-  },
-  {
-    id:          'grad-2022',
-    category:    'graduation',
-    title:       '2022 / 2014 E.C.',
-    subtitle:    'Graduation Ceremony',
-    previews:    [],
-    albumUrl:    null,
-    youtubeId:   'iFuIOr0EC90',      // ← replace with YouTube video ID
-    videoOnly:   true,
-  },
-  {
-    id:          'grad-2023',
-    category:    'graduation',
-    title:       '2023 / 2015 E.C.',
-    subtitle:    'Graduation Ceremony',
-    previews:    [
-      '/images/gallery/graduation/2023/preview-1.JPG',
-      '/images/gallery/graduation/2023/preview-2.JPG',
-      '/images/gallery/graduation/2023/preview-3.JPG',
-    ],
-    albumUrl:    'https://photos.app.goo.gl/XUqujfQ3ow4RsddZ6',
-    youtubeId:   'srAi3LEefQg',
-    videoOnly:   false,
-  },
-  {
-    id:          'grad-2020',
-    category:    'graduation',
-    title:       '2020 / 2012 E.C.',
-    subtitle:    'Graduation Ceremony',
-    previews:    [
-      '/images/gallery/graduation/2020/preview-1.JPG',
-      '/images/gallery/graduation/2020/preview-2.JPG',
-      '/images/gallery/graduation/2020/preview-3.JPG',
-    ],
-    albumUrl:    'https://photos.app.goo.gl/cY4y3zkN1wAYLHds5',
-    youtubeId:   'PLACEHOLDER_YT_ID',
-    videoOnly:   false,
-  },
-  {
-    id:          'grad-2017',
-    category:    'graduation',
-    title:       '2017 / 2009 E.C.',
-    subtitle:    'Graduation Ceremony',
-    previews:    [
-      '/images/gallery/graduation/2017/preview-1.JPG',
-      '/images/gallery/graduation/2017/preview-2.JPG',
-      '/images/gallery/graduation/2017/preview-3.JPG',
-    ],
-    albumUrl:    'https://photos.app.goo.gl/YFtG7NCTCJqubAyJ8',
-    youtubeId:   null,                      // no video for this one
-    videoOnly:   false,
-  },
-
-  // ── Competition ──
-  {
-    id:          'comp-2025',
-    category:    'competition',
-    title:       '2025 / 2017 E.C.',
-    subtitle:    'Competition',
-    previews:    [
-      '/images/gallery/competition/2025/preview-1.jpg',
-      '/images/gallery/competition/2025/preview-2.jpg',
-      '/images/gallery/competition/2025/preview-3.jpg',
-    ],
-    albumUrl:    'https://photos.app.goo.gl/qAwkDtn6goCU7gxM8',
-    youtubeId:   null,
-    videoOnly:   false,
-  },
-
-  // ── Training ──
-  {
-    id:          'training',
-    category:    'training',
-    title:       'Training Memories & Moments',
-    subtitle:    '2012 / 2004 E.C.',
-    previews:    [
-      '/images/gallery/training/preview-1.jpg',
-      '/images/gallery/training/preview-2.jpg',
-      '/images/gallery/training/preview-3.jpg'
-    ],
-    albumUrl:    'https://photos.app.goo.gl/EeQCBWB8gTDaYa6d9',
-    youtubeId:   null,
-    videoOnly:   false,
-  },
-];
+// Derived from the single shared gallery list (src/data/gallery.ts) —
+// only published albums are shown here; this used to be a second
+// hardcoded array disconnected from the admin panel's list.
+const ALBUMS = getPublishedAlbums();
 
 const TABS = ['All', 'Graduation', 'Competition', 'Training'];
 

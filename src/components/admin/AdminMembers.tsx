@@ -3,29 +3,22 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { AdminNote, NameCorrectionRequest, Status, RegistrationType } from '@/src/types';
+import { MOCK_MEMBERS as SHARED_MEMBERS } from '@/src/data/members';
+import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
 
-// TEMPORARY mock data — will be replaced by real Supabase queries once the backend exists.
-// Field shape matches exactly what Register.tsx actually collects, plus admin-assigned
-// fields (belt, status, adminNotes) that only exist once an admin has processed the
-// registration or worked with the student over time.
-type AdminNote = {
-  id: string;
-  date: string;
-  note: string;
-};
-
-type NameCorrectionRequest = {
-  requestedName: string;
-  note: string;
-  submittedAt: string;
-};
-
+// This admin view keeps its own flat shape (fullName/belt-as-name instead of
+// name/beltId) because that's what this screen's filtering, CSV export, and
+// promotion logic (BELTS.indexOf) all key off — but the underlying records
+// now come from the single shared member list in src/data/members.ts instead
+// of a second hardcoded copy, so admin edits and the canonical record can't
+// drift apart the way they used to.
 type Member = {
   id: string;
   fullName: string;
   email: string;
   phone: string;
-  registrationType: 'new' | 'training' | 'returning';
+  registrationType: RegistrationType;
   previousBelt: string;
   yearJoined: string;
   gapReason: string;
@@ -35,11 +28,11 @@ type Member = {
   adminNotes: AdminNote[];
   nameCorrectionRequest: NameCorrectionRequest | null;
   belt: string;
-  status: 'pending' | 'active' | 'graduated' | 'serving' | 'paused' | 'withdrawn';
+  status: Status;
   registeredAt: string;
 };
 
-const BELTS = ['White', 'Yellow', 'Green', 'Blue', 'Red', 'Brown', 'Black'];
+const BELTS = SHARED_BELTS.map((b) => b.name);
 const BELT_COLORS: Record<string, string> = {
   White: '#FFFFFF', Yellow: '#FFD700', Green: '#2ECC71',
   Blue: '#3498DB',  Red: '#E74C3C',   Brown: '#8B4513', Black: '#C9A84C',
@@ -76,69 +69,27 @@ const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Health / Medical Notes',  get: (m) => m.healthNotes },
   { header: 'Registered On',           get: (m) => m.registeredAt },
 ];
-
-// Mock data — replace with a Supabase query later
-const MOCK_MEMBERS: Member[] = [
-  {
-    id: '1', fullName: 'Kaleb Haile', email: 'kaleb@email.com', phone: '+251-91-111-1111',
-    registrationType: 'new', previousBelt: '', yearJoined: '', gapReason: '',
-    emergencyName: 'Selamawit Haile', emergencyPhone: '+251-91-111-9999',
-    healthNotes: '', adminNotes: [], nameCorrectionRequest: null,
-    belt: 'White', status: 'pending', registeredAt: '2026-05-01',
-  },
-  {
-    id: '2', fullName: 'Meron Tesfaye', email: 'meron@email.com', phone: '+251-91-222-2222',
-    registrationType: 'new', previousBelt: '', yearJoined: '', gapReason: '',
-    emergencyName: 'Abel Tesfaye', emergencyPhone: '+251-91-222-9999',
-    healthNotes: '', adminNotes: [], nameCorrectionRequest: null,
-    belt: 'Yellow', status: 'active', registeredAt: '2026-04-12',
-  },
-  {
-    id: '3', fullName: 'Samuel Girma', email: 'samuel@email.com', phone: '+251-91-333-3333',
-    registrationType: 'training', previousBelt: 'Yellow', yearJoined: '2024', gapReason: '',
-    emergencyName: 'Hana Girma', emergencyPhone: '+251-91-333-9999',
-    healthNotes: '', adminNotes: [
-      { id: 'n1', date: '2026-06-02', note: 'Missed 3 classes in a row — following up with family.' },
-    ], nameCorrectionRequest: null,
-    belt: 'Green', status: 'active', registeredAt: '2026-03-14',
-  },
-  {
-    id: '4', fullName: 'Liya Bekele', email: 'liya@email.com', phone: '+251-91-444-4444',
-    registrationType: 'new', previousBelt: '', yearJoined: '', gapReason: '',
-    emergencyName: 'Dawit Bekele', emergencyPhone: '+251-91-444-9999',
-    healthNotes: '', adminNotes: [], nameCorrectionRequest: null,
-    belt: 'White', status: 'pending', registeredAt: '2026-05-01',
-  },
-  {
-    id: '5', fullName: 'Dawit Alemu', email: 'dawit@email.com', phone: '+251-91-555-5555',
-    registrationType: 'training', previousBelt: 'Red', yearJoined: '2023', gapReason: '',
-    emergencyName: 'Meaza Alemu', emergencyPhone: '+251-91-555-9999',
-    healthNotes: '', adminNotes: [], nameCorrectionRequest: null,
-    belt: 'Blue', status: 'active', registeredAt: '2026-01-20',
-  },
-  {
-    id: '6', fullName: 'Hana Desta', email: 'hana@email.com', phone: '+251-91-666-6666',
-    registrationType: 'new', previousBelt: '', yearJoined: '', gapReason: '',
-    emergencyName: 'Selam Desta', emergencyPhone: '+251-91-666-9999',
-    healthNotes: 'Mild asthma — carries inhaler', adminNotes: [], nameCorrectionRequest: null,
-    belt: 'Red', status: 'active', registeredAt: '2025-11-02',
-  },
-  {
-    id: '7', fullName: 'Yonas Tadesse', email: 'yonas@gmail.com', phone: '+251-912-234-567',
-    registrationType: 'returning', previousBelt: 'Green', yearJoined: '2022', gapReason: 'Moved for university',
-    emergencyName: 'Meron Tadesse', emergencyPhone: '+251-911-234-000',
-    healthNotes: 'Mild asthma — carries inhaler', adminNotes: [],
-    nameCorrectionRequest: { requestedName: 'Yonas T. Tadesse', note: 'Misspelled at registration — missing middle initial.', submittedAt: '2026-07-28' },
-    belt: 'Green', status: 'active', registeredAt: '2026-06-01',
-  },
-  {
-    id: '8', fullName: 'Tigist Worku', email: 'tigist@email.com', phone: '+251-91-888-8888',
-    registrationType: 'training', previousBelt: 'Yellow', yearJoined: '2024', gapReason: '',
-    emergencyName: 'Girma Worku', emergencyPhone: '+251-91-888-9999',
-    healthNotes: '', adminNotes: [], nameCorrectionRequest: null,
-    belt: 'Yellow', status: 'paused', registeredAt: '2024-12-05',
-  },
-];
+// Derived from the single shared member list (src/data/members.ts) instead
+// of a second hardcoded array, so this view and Profile/Dashboard can't
+// silently drift apart the way the old duplicated mock data could.
+const MOCK_MEMBERS: Member[] = SHARED_MEMBERS.map((u) => ({
+  id: u.id,
+  fullName: u.name,
+  email: u.email,
+  phone: u.phone ?? '',
+  registrationType: u.registrationType,
+  previousBelt: u.previousBelt ?? '',
+  yearJoined: u.yearJoined ?? '',
+  gapReason: u.gapReason ?? '',
+  emergencyName: u.emergencyContactName ?? '',
+  emergencyPhone: u.emergencyContactPhone ?? '',
+  healthNotes: u.healthNotes ?? '',
+  adminNotes: u.adminNotes,
+  nameCorrectionRequest: u.nameCorrectionRequest,
+  belt: getBeltById(u.beltId ?? 'belt-1')!.name,
+  status: u.status,
+  registeredAt: u.createdAt,
+}));
 
 export default function AdminMembers() {
   const [members,       setMembers]       = useState<Member[]>(MOCK_MEMBERS);

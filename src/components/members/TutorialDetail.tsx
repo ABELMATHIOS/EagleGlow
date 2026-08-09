@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { TUTORIALS as SHARED_TUTORIALS, isTutorialCompleted } from '@/src/data/tutorials';
+import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
 
 /* ============================================================
    TYPES & DATA
@@ -24,18 +26,13 @@ type Tutorial = {
   videoId?: string;        // YouTube video ID — omit for instructor-led, no-video sessions
 };
 
-const BELTS: Record<BeltId, { name: string; color: string }> = {
-  white:  { name: 'White',  color: '#FFFFFF' },
-  yellow: { name: 'Yellow', color: '#FFD700' },
-  green:  { name: 'Green',  color: '#2ECC71' },
-  blue:   { name: 'Blue',   color: '#3B82F6' },
-  red:    { name: 'Red',    color: '#E53935' },
-  brown:  { name: 'Brown',  color: '#8B5E3C' },
-  // True black (#000) would be invisible against this page's near-black
-  // (#0a0a0a) background, so black belt uses a lighter charcoal instead —
-  // still reads as "black belt" but is actually visible.
-  black:  { name: 'Black',  color: '#3A3A3A' },
-};
+// Derived from the shared belts list; True black (#000) would be invisible
+// against this page's near-black (#0a0a0a) background, so black belt keeps
+// a lighter charcoal override here for visibility, while sourcing the belt
+// name/slug from the same shared data everywhere else uses.
+const BELTS: Record<BeltId, { name: string; color: string }> = Object.fromEntries(
+  SHARED_BELTS.map((b) => [b.slug, { name: b.name, color: b.slug === 'black' ? '#3A3A3A' : b.color }])
+) as Record<BeltId, { name: string; color: string }>;
 
 const CATEGORY_LABEL: Record<Category, string> = {
   taolu:       'Taolu / Forms',

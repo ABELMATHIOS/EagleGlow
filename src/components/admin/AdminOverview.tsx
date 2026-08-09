@@ -1,31 +1,46 @@
 'use client';
 
 import Link from 'next/link';
+import { Status } from '@/src/types';
+import { MOCK_MEMBERS } from '@/src/data/members';
+import { BELTS, getBeltById } from '@/src/data/belts';
 
-// Mock data — replace with Supabase queries later
+// Derived from the same shared member list AdminMembers.tsx uses, instead of
+// a separate hand-typed snapshot that had to be kept in sync by hand.
+const totalMembers = MOCK_MEMBERS.length;
+const pendingCount = MOCK_MEMBERS.filter((m) => m.status === 'pending').length;
+const activeCount = MOCK_MEMBERS.filter((m) => m.status === 'active').length;
+
 const STATS = [
-  { label: 'Total Members',    value: '48',  delta: '+3 this month',  color: '#C9A84C' },
-  { label: 'Pending Approval', value: '5',   delta: 'Needs action',   color: '#E74C3C' },
-  { label: 'Active Members',   value: '41',  delta: '85% of total',   color: '#2ECC71' },
-  { label: 'Belt Promotions',  value: '7',   delta: 'This quarter',   color: '#3498DB' },
+  { label: 'Total Members',    value: String(totalMembers), delta: `${totalMembers} on record`, color: '#C9A84C' },
+  { label: 'Pending Approval', value: String(pendingCount),  delta: pendingCount > 0 ? 'Needs action' : 'All caught up', color: '#E74C3C' },
+  { label: 'Active Members',   value: String(activeCount),   delta: `${Math.round((activeCount / totalMembers) * 100)}% of total`, color: '#2ECC71' },
+  // Belt-promotion history isn't modeled yet (would come from
+  // MembershipHistory once that table exists) — left as a static placeholder.
+  { label: 'Belt Promotions',  value: '—', delta: 'Not tracked yet', color: '#3498DB' },
 ];
 
-const RECENT_MEMBERS = [
-  { name: 'Kaleb Haile',    belt: 'White',  status: 'pending', joined: '2 days ago'  },
-  { name: 'Meron Tesfaye',  belt: 'Yellow', status: 'active',  joined: '1 week ago'  },
-  { name: 'Samuel Girma',   belt: 'Green',  status: 'active',  joined: '2 weeks ago' },
-  { name: 'Liya Bekele',    belt: 'White',  status: 'pending', joined: '3 weeks ago' },
-  { name: 'Dawit Alemu',    belt: 'Blue',   status: 'active',  joined: '1 month ago' },
-];
+const RECENT_MEMBERS = [...MOCK_MEMBERS]
+  .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+  .slice(0, 5)
+  .map((m) => ({
+    name: m.name,
+    belt: getBeltById(m.beltId ?? 'belt-1')!.name,
+    status: m.status,
+    joined: m.createdAt,
+  }));
 
-const BELT_COLORS: Record<string, string> = {
-  White: '#FFFFFF', Yellow: '#FFD700', Green: '#2ECC71',
-  Blue: '#3498DB',  Red: '#E74C3C',   Brown: '#8B4513', Black: '#C9A84C',
-};
+const BELT_COLORS: Record<string, string> = Object.fromEntries(BELTS.map((b) => [b.name, b.color]));
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: '#E74C3C',
-  active:  '#2ECC71',
+// Covers the full Status enum, not just pending/active, so any real status
+// still gets a color instead of falling through to `undefined`.
+const STATUS_COLORS: Record<Status, string> = {
+  pending:   '#E74C3C',
+  active:    '#2ECC71',
+  graduated: '#3498DB',
+  serving:   '#9B59B6',
+  paused:    '#F39C12',
+  withdrawn: 'rgba(255,255,255,0.4)',
 };
 
 export default function AdminOverview() {

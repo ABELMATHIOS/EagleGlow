@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { BELTS } from '@/src/data/belts';
 
-const BELT_OPTIONS = ['White', 'Yellow', 'Green', 'Blue', 'Red', 'Brown', 'Black'];
+const BELT_OPTIONS = BELTS.map((b) => b.name);
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => CURRENT_YEAR - i);
@@ -35,8 +36,13 @@ export default function Register() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const passwordValid = form.password.length >= 8;
+  const passwordsMatch = form.confirmPassword.length > 0 && form.password === form.confirmPassword;
+  const canSubmit = agreed && passwordValid && passwordsMatch;
+
   const handleSubmit = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (!canSubmit) return;
     // Phase 6 — Supabase + NextAuth logic goes here
     // NOTE: healthNotes is sensitive information — once a real backend exists,
     // this should NOT be visible in general member lists/admin views the same
@@ -636,6 +642,16 @@ export default function Register() {
                       {showConfirm ? 'Hide' : 'Show'}
                     </button>
                   </div>
+                  {form.password.length > 0 && !passwordValid && (
+                    <p style={{ fontSize: 11, color: '#EF4444', margin: 0 }}>
+                      Password must be at least 8 characters.
+                    </p>
+                  )}
+                  {form.confirmPassword.length > 0 && !passwordsMatch && (
+                    <p style={{ fontSize: 11, color: '#EF4444', margin: 0 }}>
+                      Passwords do not match.
+                    </p>
+                  )}
                 </div>
 
                 {/* Terms checkbox */}
@@ -674,7 +690,7 @@ export default function Register() {
                   <button
                     className="reg-btn"
                     onClick={handleSubmit}
-                    disabled={!agreed}
+                    disabled={!canSubmit}
                   >
                     Create Account
                   </button>

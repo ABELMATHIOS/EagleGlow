@@ -1,23 +1,29 @@
 'use client';
 
 import { useState } from 'react';
+import { TUTORIALS as SHARED_TUTORIALS } from '@/src/data/tutorials';
+import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
 
-const BELTS = ['White', 'Yellow', 'Green', 'Blue', 'Red', 'Brown', 'Black'];
-const BELT_COLORS: Record<string, string> = {
-  White: '#FFFFFF', Yellow: '#FFD700', Green: '#2ECC71',
-  Blue: '#3498DB',  Red: '#E74C3C',   Brown: '#8B4513', Black: '#C9A84C',
-};
+const BELTS = SHARED_BELTS.map((b) => b.name);
+const BELT_COLORS: Record<string, string> = Object.fromEntries(SHARED_BELTS.map((b) => [b.name, b.color]));
 
-const TUTORIALS = [
-  { id: '1', belt: 'White',  title: 'Basic Stance & Footwork',     duration: '12:00', published: true  },
-  { id: '2', belt: 'White',  title: 'Introduction to Taolu',        duration: '18:30', published: true  },
-  { id: '3', belt: 'White',  title: 'Basic Punching Techniques',    duration: '15:00', published: true  },
-  { id: '4', belt: 'Yellow', title: 'Intermediate Stances',         duration: '20:00', published: true  },
-  { id: '5', belt: 'Yellow', title: 'Kicking Fundamentals',         duration: '22:45', published: true  },
-  { id: '6', belt: 'Green',  title: 'Advanced Taolu Forms',         duration: '35:00', published: true  },
-  { id: '7', belt: 'Green',  title: 'Sanda Introduction',           duration: '28:00', published: false },
-  { id: '8', belt: 'Blue',   title: 'Advanced Combat Techniques',   duration: '40:00', published: false },
-];
+function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:00` : `${m}:00`;
+}
+
+// Derived from the single shared tutorial list (src/data/tutorials.ts) —
+// previously this admin table had its own 8-item mock, separate from the
+// 41-item list the member-facing tutorial pages actually rendered, so a
+// tutorial published/unpublished here had no effect on what members saw.
+const TUTORIALS = SHARED_TUTORIALS.map((t) => ({
+  id: t.id,
+  belt: getBeltById(t.beltId)!.name,
+  title: t.title,
+  duration: formatDuration(t.durationMinutes),
+  published: t.published,
+}));
 
 export default function AdminTutorials() {
   const [filterBelt, setFilterBelt]   = useState('all');

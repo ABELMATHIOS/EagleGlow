@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import SectionLabel from '@/src/components/classes/SectionLabel';
-
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+import { CLASSES as SHARED_CLASSES, DAYS, formatDuration } from '@/src/data/classes';
 
 type ClassEntry = {
   time: string;
@@ -13,43 +12,22 @@ type ClassEntry = {
   level?: string;
 };
 
-const SCHEDULE: Record<string, ClassEntry[]> = {
-  Monday: [
-    { time: '06:00', name: 'Morning Wushu — Taolu', type: 'wushu', duration: '90 min', level: 'All Levels' },
-    { time: '09:00', name: 'Zumba', type: 'fitness', duration: '60 min' },
-    { time: '17:00', name: 'Wushu — Sanda', type: 'wushu', duration: '90 min', level: 'Intermediate+' },
-    { time: '19:00', name: 'Aerobics', type: 'fitness', duration: '60 min' },
-  ],
-  Tuesday: [
-    { time: '06:00', name: 'Morning Wushu — Taolu', type: 'wushu', duration: '90 min', level: 'All Levels' },
-    { time: '09:00', name: 'Tae Bo', type: 'fitness', duration: '60 min' },
-    { time: '17:00', name: 'Wushu — Taolu', type: 'wushu', duration: '90 min', level: 'Beginners' },
-    { time: '19:00', name: 'Zumba', type: 'fitness', duration: '60 min' },
-  ],
-  Wednesday: [
-    { time: '06:00', name: 'Morning Wushu — Sanda', type: 'wushu', duration: '90 min', level: 'All Levels' },
-    { time: '09:00', name: 'Aerobics', type: 'fitness', duration: '60 min' },
-    { time: '17:00', name: 'Wushu — Taolu', type: 'wushu', duration: '90 min', level: 'Advanced' },
-    { time: '19:00', name: 'Tae Bo', type: 'fitness', duration: '60 min' },
-  ],
-  Thursday: [
-    { time: '06:00', name: 'Morning Wushu — Taolu', type: 'wushu', duration: '90 min', level: 'All Levels' },
-    { time: '09:00', name: 'Zumba', type: 'fitness', duration: '60 min' },
-    { time: '17:00', name: 'Wushu — Sanda', type: 'wushu', duration: '90 min', level: 'Intermediate+' },
-    { time: '19:00', name: 'Aerobics', type: 'fitness', duration: '60 min' },
-  ],
-  Friday: [
-    { time: '06:00', name: 'Morning Wushu — Taolu', type: 'wushu', duration: '90 min', level: 'All Levels' },
-    { time: '09:00', name: 'Tae Bo', type: 'fitness', duration: '60 min' },
-    { time: '17:00', name: 'Open Wushu Training', type: 'wushu', duration: '120 min', level: 'All Levels' },
-    { time: '19:00', name: 'Zumba', type: 'fitness', duration: '60 min' },
-  ],
-  Saturday: [
-    { time: '08:00', name: 'Weekend Wushu — Taolu', type: 'wushu', duration: '120 min', level: 'All Levels' },
-    { time: '10:00', name: 'Wushu — Sanda', type: 'wushu', duration: '90 min', level: 'Intermediate+' },
-    { time: '14:00', name: 'Zumba & Aerobics Mix', type: 'fitness', duration: '60 min' },
-  ],
-};
+// Grouped by day from the single shared classes list (src/data/classes.ts),
+// which also carries a stable `id` per class — this local view just keeps
+// the display-friendly `name`/`duration` (string) shape the table already
+// used.
+const SCHEDULE: Record<string, ClassEntry[]> = DAYS.reduce((acc, day) => {
+  acc[day] = SHARED_CLASSES
+    .filter((c) => c.day === day)
+    .map((c) => ({
+      time: c.time,
+      name: c.title,
+      type: c.type,
+      duration: formatDuration(c.durationMinutes),
+      level: c.level,
+    }));
+  return acc;
+}, {} as Record<string, ClassEntry[]>);
 
 export default function WeeklySchedule() {
   const [activeDay, setActiveDay] = useState('Monday');

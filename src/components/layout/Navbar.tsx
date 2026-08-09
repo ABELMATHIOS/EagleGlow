@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import Image from "next/image";
+import { getMockSessionRole, clearMockSession } from "@/src/lib/auth";
 
 const navLinks = [
   { label: "Home",       href: "/" },
@@ -18,6 +19,7 @@ const navLinks = [
 export default function Navbar() {
   const [isOpen,   setIsOpen]   = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [role,     setRole]     = useState<"guest" | "member" | "admin">("guest");
 
   const pathname  = usePathname();
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -27,6 +29,24 @@ export default function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Mock session read — re-checks on every route change so Navbar updates
+  // right after a login redirect or logout, without needing a real
+  // client-side auth context.
+  useEffect(() => {
+    const sessionRole = getMockSessionRole();
+    setRole(sessionRole === "guest" ? "guest" : sessionRole);
+  }, [pathname]);
+
+  const isLoggedIn = role === "member" || role === "admin";
+  const accountHref = role === "admin" ? "/admin" : "/dashboard";
+
+  const handleLogout = () => {
+    clearMockSession();
+    setRole("guest");
+    setIsOpen(false);
+    window.location.href = "/";
+  };
 
   useEffect(() => { setIsOpen(false); }, [pathname]);
 
@@ -204,11 +224,24 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Desktop/Tablet right */}
+           {/* Desktop/Tablet right */}
             <div style={{ display: "none" }} className="tablet-show">
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <Link href="/auth/register" className="btn-register">Join Now</Link>
-                <Link href="/auth/login" className="btn-login desktop-only-btn" style={{ display: "none" }}>Login</Link>
+                {isLoggedIn ? (
+                  <>
+                    <Link href={accountHref} className="btn-login desktop-only-btn">
+                      {role === "admin" ? "Admin" : "Dashboard"}
+                    </Link>
+                    <button onClick={handleLogout} className="btn-login desktop-only-btn" style={{ cursor: "pointer" }}>
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/auth/register" className="btn-register">Join Now</Link>
+                    <Link href="/auth/login" className="btn-login desktop-only-btn">Login</Link>
+                  </>
+                )}
               </div>
             </div>
 
@@ -308,12 +341,25 @@ export default function Navbar() {
           borderTop: "0.5px solid rgba(201,168,76,0.1)",
           display: "flex", gap: 8,
         }}>
-          <Link href="/auth/register" className="btn-register" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12 }}>
-            Join Now
-          </Link>
-          <Link href="/auth/login" className="btn-login" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12 }}>
-            Login
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link href={accountHref} className="btn-login" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12 }} onClick={() => setIsOpen(false)}>
+                {role === "admin" ? "Admin" : "Dashboard"}
+              </Link>
+              <button onClick={handleLogout} className="btn-login" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12, cursor: "pointer" }}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/register" className="btn-register" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12 }} onClick={() => setIsOpen(false)}>
+                Join Now
+              </Link>
+              <Link href="/auth/login" className="btn-login" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12 }} onClick={() => setIsOpen(false)}>
+                Login
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </>

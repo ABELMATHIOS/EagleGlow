@@ -1,16 +1,24 @@
 'use client';
 
 import Link from 'next/link';
+import { BELTS as SHARED_BELTS } from '@/src/data/belts';
+import { getTutorialsByBelt, isTutorialCompleted } from '@/src/data/tutorials';
 
-const BELTS = [
-  { name: 'White',  slug: 'white',  color: '#FFFFFF', textColor: '#111', tutorials: 6,  completed: 6,  unlocked: true  },
-  { name: 'Yellow', slug: 'yellow', color: '#FFD700', textColor: '#111', tutorials: 6,  completed: 6,  unlocked: true  },
-  { name: 'Green',  slug: 'green',  color: '#2ECC71', textColor: '#111', tutorials: 6,  completed: 4,  unlocked: true  },
-  { name: 'Blue',   slug: 'blue',   color: '#3498DB', textColor: '#fff', tutorials: 8,  completed: 0,  unlocked: true },
-  { name: 'Red',    slug: 'red',    color: '#E74C3C', textColor: '#fff', tutorials: 10, completed: 0,  unlocked: true },
-  { name: 'Brown',  slug: 'brown',  color: '#8B4513', textColor: '#fff', tutorials: 10, completed: 0,  unlocked: true },
-  { name: 'Black',  slug: 'black',  color: '#C9A84C', textColor: '#111', tutorials: 12, completed: 0,  unlocked: true, isBlack: true },
-];
+// Derived from the shared belts + tutorials lists instead of a hand-typed
+// per-belt tutorial/completed count that had to be kept in sync by hand
+// whenever a tutorial was added or completed.
+const BELTS = SHARED_BELTS.map((b) => {
+  const beltTutorials = getTutorialsByBelt(b.id).filter((t) => t.published);
+  return {
+    name: b.name,
+    slug: b.slug,
+    color: b.color,
+    textColor: b.textColor,
+    tutorials: beltTutorials.length,
+    completed: beltTutorials.filter((t) => isTutorialCompleted(t.id)).length,
+    unlocked: true,
+  };
+});
 
 function SectionLabel({ text }: { text: string }) {
   return (

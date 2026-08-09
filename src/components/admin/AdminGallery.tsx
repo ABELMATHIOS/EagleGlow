@@ -2,98 +2,17 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { GalleryAlbum } from '@/src/types';
+import { ALBUMS as SHARED_ALBUMS } from '@/src/data/gallery';
 
-// ── Types ─────────────────────────────────────────────────────
-type Category = 'graduation' | 'competition' | 'training';
+type Category = GalleryAlbum['category'];
+type Album = GalleryAlbum;
 
-interface Album {
-  id:        string;
-  category:  Category;
-  title:     string;
-  subtitle:  string;
-  albumUrl:  string | null;
-  youtubeId: string | null;
-  videoOnly: boolean;
-  published: boolean;
-  previews:  string[];
-}
-
-// ── Mock data ─────────────────────────────────────────────────
-const INITIAL_ALBUMS: Album[] = [
-  {
-    id: 'grad-2025', category: 'graduation',
-    title: '2025 / 2017 E.C.', subtitle: 'Graduation Ceremony',
-    albumUrl: null, youtubeId: null,
-    videoOnly: false, published: true,
-    previews: [
-      '/images/gallery/graduation/2025/preview-1.jpg',
-      '/images/gallery/graduation/2025/preview-2.jpg',
-      '/images/gallery/graduation/2025/preview-3.jpg',
-    ],
-  },
-  {
-    id: 'grad-2023', category: 'graduation',
-    title: '2023 / 2015 E.C.', subtitle: 'Graduation Ceremony',
-    albumUrl: null, youtubeId: null,
-    videoOnly: true, published: true,
-    previews: [],
-  },
-  {
-    id: 'grad-2022', category: 'graduation',
-    title: '2022 / 2014 E.C.', subtitle: 'Graduation Ceremony',
-    albumUrl: null, youtubeId: null,
-    videoOnly: false, published: true,
-    previews: [
-      '/images/gallery/graduation/2022/preview-1.jpg',
-      '/images/gallery/graduation/2022/preview-2.jpg',
-      '/images/gallery/graduation/2022/preview-3.jpg',
-    ],
-  },
-  {
-    id: 'grad-2020', category: 'graduation',
-    title: '2020 / 2012 E.C.', subtitle: 'Graduation Ceremony',
-    albumUrl: null, youtubeId: null,
-    videoOnly: false, published: true,
-    previews: [
-      '/images/gallery/graduation/2020/preview-1.jpg',
-      '/images/gallery/graduation/2020/preview-2.jpg',
-      '/images/gallery/graduation/2020/preview-3.jpg',
-    ],
-  },
-  {
-    id: 'grad-2017', category: 'graduation',
-    title: '2017 / 2009 E.C.', subtitle: 'Graduation Ceremony',
-    albumUrl: null, youtubeId: null,
-    videoOnly: false, published: true,
-    previews: [
-      '/images/gallery/graduation/2017/preview-1.jpg',
-      '/images/gallery/graduation/2017/preview-2.jpg',
-      '/images/gallery/graduation/2017/preview-3.jpg',
-    ],
-  },
-  {
-    id: 'comp-2025', category: 'competition',
-    title: '2025 / 2017 E.C.', subtitle: 'Competition',
-    albumUrl: null, youtubeId: null,
-    videoOnly: false, published: true,
-    previews: [
-      '/images/gallery/competition/2025/preview-1.jpg',
-      '/images/gallery/competition/2025/preview-2.jpg',
-      '/images/gallery/competition/2025/preview-3.jpg',
-    ],
-  },
-  {
-    id: 'training', category: 'training',
-    title: 'Training Memories & Moments', subtitle: '2012 / 2004 E.C.',
-    albumUrl: null, youtubeId: null,
-    videoOnly: false, published: true,
-    previews: [
-      '/images/gallery/training/preview-1.jpg',
-      '/images/gallery/training/preview-2.jpg',
-      '/images/gallery/training/preview-3.jpg',
-    ],
-  },
-];
+// Seeded from the single shared gallery list (src/data/gallery.ts) instead
+// of a second hardcoded copy — previously this admin list and the public
+// GalleryGrid.tsx page were two disconnected arrays, so publishing/
+// unpublishing an album here had no effect on what the public page showed.
+const INITIAL_ALBUMS: Album[] = SHARED_ALBUMS;
 
 const CATEGORY_COLORS: Record<Category, string> = {
   graduation:  '#C9A84C',

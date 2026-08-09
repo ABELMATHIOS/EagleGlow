@@ -1,32 +1,37 @@
 'use client';
 
 import Link from 'next/link';
+import { Status } from '@/src/types';
+import { BELTS, getBeltById } from '@/src/data/belts';
+import { CURRENT_USER } from '@/src/data/members';
 
-const BELTS = [
-  { name: 'White',  slug: 'white',  color: '#FFFFFF', textColor: '#111' },
-  { name: 'Yellow', slug: 'yellow', color: '#FFD700', textColor: '#111' },
-  { name: 'Green',  slug: 'green',  color: '#2ECC71', textColor: '#111' },
-  { name: 'Blue',   slug: 'blue',   color: '#3498DB', textColor: '#fff' },
-  { name: 'Red',    slug: 'red',    color: '#E74C3C', textColor: '#fff' },
-  { name: 'Brown',  slug: 'brown',  color: '#8B4513', textColor: '#fff' },
-  { name: 'Black',  slug: 'black',  color: '#C9A84C', textColor: '#111' },
-];
-
-// Mock member data — replace with real Supabase data later
+// Mock member data — replace with real Supabase data later. Pulled from the
+// same shared CURRENT_USER record Profile.tsx uses, so belt/status/join
+// date can't drift out of sync between the two pages.
 const MEMBER = {
-  name: 'Yonas',
-  beltLevel: 3, // Green belt — matches Profile.tsx
-  status: 'active' as 'pending' | 'active', // matches the Status enum in types/index.ts
-  joinDate: 'March 2022', // matches Profile.tsx
+  name: CURRENT_USER.name.split(' ')[0],
+  beltOrder: getBeltById(CURRENT_USER.beltId ?? 'belt-1')!.order,
+  status: CURRENT_USER.status,
+  joinDate: new Date(CURRENT_USER.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
 };
 
-const STATUS_LABEL: Record<typeof MEMBER.status, string> = {
-  pending: 'Pending Approval',
-  active: 'Active Member',
+// Covers the full Status enum, not just pending/active, so a member in any
+// other real status still renders correctly instead of hitting `undefined`.
+const STATUS_LABEL: Record<Status, string> = {
+  pending:   'Pending Approval',
+  active:    'Active Member',
+  graduated: 'Graduated',
+  serving:   'Serving',
+  paused:    'Paused',
+  withdrawn: 'Withdrawn',
 };
-const STATUS_COLOR: Record<typeof MEMBER.status, string> = {
-  pending: '#E74C3C',
-  active: '#2ECC71',
+const STATUS_COLOR: Record<Status, string> = {
+  pending:   '#E74C3C',
+  active:    '#2ECC71',
+  graduated: '#3498DB',
+  serving:   '#9B59B6',
+  paused:    '#F39C12',
+  withdrawn: 'rgba(255,255,255,0.4)',
 };
 
 function SectionLabel({ text }: { text: string }) {
@@ -47,7 +52,7 @@ function SectionLabel({ text }: { text: string }) {
 }
 
 export default function Dashboard() {
-  const currentBelt = BELTS[MEMBER.beltLevel - 1];
+  const currentBelt = BELTS.find((b) => b.order === MEMBER.beltOrder)!;
 
   return (
     <>

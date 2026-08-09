@@ -1,19 +1,44 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { setMockSession } from '@/src/lib/auth';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [logoError, setLogoError] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const emailValid = EMAIL_RE.test(email);
+  const canSubmit = emailValid && password.length > 0 && status !== 'submitting';
 
   const handleSubmit = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Phase 6 — Supabase + NextAuth logic goes here
+    if (!canSubmit) return;
+    setStatus('submitting');
+    setErrorMessage('');
+    // Phase 6 — Supabase + NextAuth logic goes here. Once wired up, replace
+    // this timeout with the real sign-in call and setStatus('error') with
+    // the real message on failure instead of always succeeding.
+    setTimeout(() => {
+      // Mock sign-in: replace with the real Supabase/NextAuth call. There's
+      // no real role check yet, so this heuristic (email containing
+      // "admin") just lets you exercise both the member and admin paths —
+      // it's not a real permission check.
+      setMockSession(email.toLowerCase().includes('admin') ? 'admin' : 'member');
+      setStatus('idle');
+      router.push(searchParams.get('redirectTo') || '/dashboard');
+    }, 800);
   };
 
   return (
@@ -61,9 +86,14 @@ export default function Login() {
         .login-btn:hover {
           background: #d9b85a;
           transform: translateY(-1px);
-        }
-        .login-btn:active {
+       .login-btn:active {
           transform: translateY(0);
+        }
+        .login-btn:disabled {
+          background: rgba(201,168,76,0.3);
+          color: rgba(17,17,17,0.5);
+          cursor: not-allowed;
+          transform: none;
         }
 
         .show-toggle {
@@ -253,10 +283,15 @@ export default function Login() {
               </div>
             </div>
 
+           {/* Error message */}
+            {status === 'error' && errorMessage && (
+              <p style={{ fontSize: 12, color: '#EF4444', margin: 0 }}>{errorMessage}</p>
+            )}
+
             {/* Login button */}
             <div style={{ marginTop: 8 }}>
-              <button className="login-btn" onClick={handleSubmit}>
-                Sign In
+              <button className="login-btn" onClick={handleSubmit} disabled={!canSubmit}>
+                {status === 'submitting' ? 'Signing In…' : 'Sign In'}
               </button>
             </div>
 

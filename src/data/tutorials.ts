@@ -1,0 +1,408 @@
+import { Tutorial, TutorialProgress } from "@/src/types";
+import { CURRENT_USER } from "@/src/data/members";
+
+// Mock data — replace with a Supabase query later (`tutorials` table).
+// Single source of truth for tutorials: previously duplicated between
+// AdminTutorials.tsx (8 items, admin-only fields) and TutorialDetail.tsx
+// (41 items, member-facing fields) with no connection between them —
+// publishing/unpublishing in admin had no effect on what members could see.
+export const TUTORIALS: Tutorial[] = [
+  // TODO: durationMinutes below is a placeholder estimate for entries that
+  // didn't have a real one yet (white-1, white-3, white-4, white-5, white-10)
+  // — swap in the real runtime whenever you have it.
+  {
+    id: 'white-1', beltId: 'belt-1', title: 'Basic Forms',
+    description: '', durationMinutes: 15, order: 1, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-2', beltId: 'belt-1', title: 'Basic Stance',
+    description: 'Master the six basic Wushu stances: Horse stance, Bow stance, Drop stance, Empty stance, Resting stance, and Sitting Stance.',
+    videoUrl: 'https://www.youtube.com/watch?v=LiEMQUIPPQg',
+    durationMinutes: 12, order: 2, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-3', beltId: 'belt-1', title: '7 Techniques',
+    description: '', durationMinutes: 10, order: 3, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-4', beltId: 'belt-1', title: '12 Techniques',
+    description: '', durationMinutes: 15, order: 4, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-5', beltId: 'belt-1', title: 'Wushu Forms 1, 2, 3, 4',
+    description: '', durationMinutes: 20, order: 5, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-6', beltId: 'belt-1', title: '16-Form Changquan',
+    description: 'Tip: Slow down the video playback speed to 0.5x to master the movements step-by-step!',
+    videoUrl: 'https://www.youtube.com/watch?v=ezR_S-38Tp4',
+    durationMinutes: 30, order: 6, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-7', beltId: 'belt-1', title: '16-Form Gunshu',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=rxrNUEB6ZRc',
+    durationMinutes: 2, order: 7, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-8', beltId: 'belt-1', title: 'Forward Roll',
+    description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!',
+    videoUrl: 'https://www.youtube.com/watch?v=sMlxHIC3yLQ',
+    durationMinutes: 6, order: 8, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-9', beltId: 'belt-1', title: 'Pike Forward Roll',
+    description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!',
+    videoUrl: 'https://www.youtube.com/watch?v=8W5UCL15DpQ',
+    durationMinutes: 0.3, order: 9, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-10', beltId: 'belt-1', title: 'Forward Roll Variations',
+    description: '', durationMinutes: 8, order: 10, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-11', beltId: 'belt-1', title: 'Handstand Forward Roll Variations',
+    description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!',
+    videoUrl: 'https://www.youtube.com/watch?v=4Aaz3R8P66Y',
+    durationMinutes: 1, order: 11, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-12', beltId: 'belt-1', title: 'Four Fundamental Wushu Kicks',
+    description: 'Master the four fundamental Wushu kicks: Front stretch kick, Side stretch kick, Inside circle kick, and Outside circle kick.',
+    videoUrl: 'https://www.youtube.com/watch?v=6RBf9qkdkQQ',
+    durationMinutes: 10, order: 12, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-13', beltId: 'belt-1', title: 'Flying Front Kick',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=ATaeHVDs9BA',
+    durationMinutes: 3, order: 13, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-14', beltId: 'belt-1', title: 'Cartwheel',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=GAbIx6oQAv4',
+    durationMinutes: 3, order: 14, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-15', beltId: 'belt-1', title: 'Round Kick',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=BEYGp-npoHc',
+    durationMinutes: 5, order: 15, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-16', beltId: 'belt-1', title: 'Butterfly Kick (B-Kick)',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=zPmukqlQnVM',
+    durationMinutes: 1, order: 16, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-17', beltId: 'belt-1', title: 'Hook Kick',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=rw7EvAo-0Og',
+    durationMinutes: 10, order: 17, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-18', beltId: 'belt-1', title: 'Punch Techniques',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=QjuQlw5FYuk',
+    durationMinutes: 18, order: 18, category: 'sanda',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'white-19', beltId: 'belt-1', title: 'Sanda/Fight Techniques',
+    description: '', videoUrl: 'https://www.youtube.com/watch?v=9jErNk5igVA',
+    durationMinutes: 10, order: 19, category: 'sanda',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'yellow-1', beltId: 'belt-2', title: 'Intermediate Stances',
+    description: 'Horse stance, bow stance, and transitions.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 18, order: 1, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'yellow-2', beltId: 'belt-2', title: 'Combination Strikes',
+    description: 'Linking hand techniques into fluid combinations.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 22, order: 2, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'yellow-3', beltId: 'belt-2', title: 'Jumping Kicks',
+    description: 'Introduction to jumping front and side kicks.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 25, order: 3, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'yellow-4', beltId: 'belt-2', title: 'Defensive Blocks',
+    description: 'Inside, outside, and downward blocking techniques.',
+    durationMinutes: 20, order: 4, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'yellow-5', beltId: 'belt-2', title: 'Partner Drills',
+    description: 'Basic partner work for distance and timing.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 28, order: 5, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'yellow-6', beltId: 'belt-2', title: 'Yellow Belt Form (Taolu)',
+    description: 'Full yellow belt form combining all techniques.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 35, order: 6, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-1', beltId: 'belt-3', title: 'Advanced Footwork',
+    description: 'Circular stepping and evasion patterns.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 20, order: 1, category: 'general',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-2', beltId: 'belt-3', title: 'Spinning Techniques',
+    description: 'Spinning back kick and spinning heel kick.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 24, order: 2, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-3', beltId: 'belt-3', title: 'Low Sweeps',
+    description: 'Leg sweep fundamentals and entry setups.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 22, order: 3, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-4', beltId: 'belt-3', title: 'Aerial Butterfly Kick',
+    description: 'Introductory aerial kick progression and landing safety.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 28, order: 4, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-5', beltId: 'belt-3', title: 'Basic Sanda Sparring',
+    description: 'Introduction to Sanda combat principles.',
+    durationMinutes: 30, order: 5, category: 'sanda',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-6', beltId: 'belt-3', title: 'Acrobatic Rolls',
+    description: 'Forward and backward rolls for safe falling.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 26, order: 6, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-7', beltId: 'belt-3', title: 'Green Belt Form (Taolu)',
+    description: 'Full green belt form combining all techniques.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 38, order: 7, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-8', beltId: 'belt-3', title: 'Staff Form Basics (Weapons)',
+    description: 'Introductory staff form and basic weapon handling.',
+    durationMinutes: 32, order: 8, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'green-9', beltId: 'belt-3', title: 'Split & Flexibility Training',
+    description: 'Front and side split progressions, hip openers.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 20, order: 9, category: 'flexibility',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'blue-1', beltId: 'belt-4', title: 'Blue Belt Form (Taolu)',
+    description: 'Full blue belt form.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 30, order: 1, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'blue-2', beltId: 'belt-4', title: 'Intermediate Kicks',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 25, order: 2, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'blue-3', beltId: 'belt-4', title: 'Sanda Combinations',
+    description: 'Placeholder — replace with real content.',
+    durationMinutes: 28, order: 3, category: 'sanda',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'blue-4', beltId: 'belt-4', title: 'Gymnastics Progression',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 24, order: 4, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'blue-5', beltId: 'belt-4', title: 'Flexibility Training',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 20, order: 5, category: 'flexibility',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'red-1', beltId: 'belt-5', title: 'Red Belt Form (Taolu)',
+    description: 'Full red belt form.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 32, order: 1, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'red-2', beltId: 'belt-5', title: 'Advanced Kicks',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 27, order: 2, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'red-3', beltId: 'belt-5', title: 'Sanda Sparring Drills',
+    description: 'Placeholder — replace with real content.',
+    durationMinutes: 30, order: 3, category: 'sanda',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'red-4', beltId: 'belt-5', title: 'Gymnastics Progression',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 26, order: 4, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'red-5', beltId: 'belt-5', title: 'Flexibility Training',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 20, order: 5, category: 'flexibility',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'brown-1', beltId: 'belt-6', title: 'Brown Belt Form (Taolu)',
+    description: 'Full brown belt form.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 34, order: 1, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'brown-2', beltId: 'belt-6', title: 'Aerial Kicks',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 30, order: 2, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'brown-3', beltId: 'belt-6', title: 'Sanda Sparring',
+    description: 'Placeholder — replace with real content.',
+    durationMinutes: 32, order: 3, category: 'sanda',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'brown-4', beltId: 'belt-6', title: 'Gymnastics Progression',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 28, order: 4, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'brown-5', beltId: 'belt-6', title: 'Flexibility Training',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 20, order: 5, category: 'flexibility',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'black-1', beltId: 'belt-7', title: 'Black Belt Form (Taolu)',
+    description: 'Full black belt form.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 40, order: 1, category: 'taolu',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'black-2', beltId: 'belt-7', title: 'Master-Level Kicks',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 32, order: 2, category: 'kicks',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'black-3', beltId: 'belt-7', title: 'Advanced Sanda',
+    description: 'Placeholder — replace with real content.',
+    durationMinutes: 34, order: 3, category: 'sanda',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'black-4', beltId: 'belt-7', title: 'Gymnastics Mastery',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 30, order: 4, category: 'gymnastics',
+    published: true, createdAt: '2026-01-01',
+  },
+  {
+    id: 'black-5', beltId: 'belt-7', title: 'Flexibility Training',
+    description: 'Placeholder — replace with real content.',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    durationMinutes: 20, order: 5, category: 'flexibility',
+    published: true, createdAt: '2026-01-01',
+  },
+];
+
+// Completion is a fact about a (user, tutorial) pair, not the tutorial
+// itself — kept separate so it can vary per member once there are real
+// accounts. This only holds progress for CURRENT_USER (the mock logged-in
+// member); a real backend would query by whichever user is signed in.
+export const CURRENT_USER_PROGRESS: TutorialProgress[] = [
+  { userId: CURRENT_USER.id, tutorialId: 'white-1', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-2', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-3', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-4', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-5', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-6', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-7', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-8', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-9', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-10', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-11', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-12', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-13', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-14', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-15', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-16', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-17', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-18', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'white-19', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'yellow-1', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'yellow-2', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'yellow-3', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'yellow-4', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'yellow-5', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'yellow-6', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'green-1', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'green-2', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'green-3', completed: true },
+  { userId: CURRENT_USER.id, tutorialId: 'green-5', completed: true },
+];
+
+export const getTutorialsByBelt = (beltId: string) =>
+  TUTORIALS.filter((t) => t.beltId === beltId).sort((a, b) => a.order - b.order);
+
+export const isTutorialCompleted = (tutorialId: string) =>
+  CURRENT_USER_PROGRESS.some((p) => p.tutorialId === tutorialId && p.completed);
