@@ -54,8 +54,8 @@ export default function ContactPreview() {
         </svg>
       ),
       label: "Call Us",
-      value: "+251-900-636-249",
-      href: "tel:+251900636249",
+      value: "+251-912-052-349",
+      href: "tel:+251-912-052-349",
       external: false,
     },
     {

@@ -187,9 +187,9 @@ export default function AdminMembers() {
   const rejectNameCorrection = (id: string) => updateMember(id, { nameCorrectionRequest: null });
 
   const handleExport = () => {
-    if (members.length === 0) return;
+    if (filtered.length === 0) return;
     const headerRow = CSV_COLUMNS.map((c) => c.header).join(',');
-    const dataRows = members.map((m) =>
+    const dataRows = filtered.map((m) =>
       CSV_COLUMNS.map((c) => `"${c.get(m).replace(/"/g, '""')}"`).join(',')
     );
     const csvContent = [headerRow, ...dataRows].join('\n');
@@ -202,8 +202,8 @@ export default function AdminMembers() {
     URL.revokeObjectURL(url);
   };
 
-  const handleExportPDF = () => {
-    if (members.length === 0) return;
+ const handleExportPDF = () => {
+    if (filtered.length === 0) return;
     const dateStr = new Date().toISOString().slice(0, 10);
     const doc = new jsPDF({ orientation: 'landscape' });
 
@@ -213,12 +213,12 @@ export default function AdminMembers() {
 
     doc.setFontSize(10);
     doc.setTextColor(120, 120, 120);
-    doc.text(`Generated ${dateStr} — ${members.length} members`, 14, 22);
+    doc.text(`Generated ${dateStr} — ${filtered.length} members`, 14, 22);
 
     autoTable(doc, {
       startY: 28,
       head: [CSV_COLUMNS.map((c) => c.header)],
-      body: members.map((m) => CSV_COLUMNS.map((c) => c.get(m) || '—')),
+      body: filtered.map((m) => CSV_COLUMNS.map((c) => c.get(m) || '—')),
       styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
       headStyles: { fillColor: [201, 168, 76], textColor: [17, 17, 17], fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -306,6 +306,11 @@ export default function AdminMembers() {
           font-family: 'Inter', sans-serif;
           outline: none;
           cursor: pointer;
+          
+        }
+        .admin-select option {
+          background: #111;
+          color: #fff;
         }
         .admin-textarea {
           background: #111;
@@ -615,8 +620,8 @@ export default function AdminMembers() {
                 <div className="detail-row"><span>Gap Reason</span><span>{selectedMember.gapReason}</span></div>
               )}
 
-              {/* Belt */}
-              <div className="detail-row" style={{ alignItems: 'center', marginBottom: 20 }}>
+             {/* Belt */}
+              <div className="detail-row" style={{ alignItems: 'center', marginBottom: 12 }}>
                 <span>Belt</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                   <span style={{

@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { BELTS as SHARED_BELTS } from '@/src/data/belts';
 import { getTutorialsByBelt, isTutorialCompleted } from '@/src/data/tutorials';
 
-// Derived from the shared belts + tutorials lists instead of a hand-typed
-// per-belt tutorial/completed count that had to be kept in sync by hand
-// whenever a tutorial was added or completed.
+// SDA rule: a member should only see their current belt and belts below
+// it. Deliberately left unlocked for everyone until real accounts/auth
+// exist — locking it now would lock every visitor identically, since
+// there's no real per-user belt yet. Re-enable once login is real: swap
+// `unlocked: true` below for `unlocked: b.order <= <real user's belt order>`.
 const BELTS = SHARED_BELTS.map((b) => {
   const beltTutorials = getTutorialsByBelt(b.id).filter((t) => t.published);
   return {

@@ -155,6 +155,11 @@ export default function AdminGallery() {
           font-size: 13px; color: rgba(255,255,255,0.7);
           font-family: 'Inter', sans-serif;
           outline: none; cursor: pointer;
+          
+        }
+        .admin-select option {
+          background: #111;
+          color: #fff;
         }
         .admin-checkbox-row {
           display: flex; align-items: center;

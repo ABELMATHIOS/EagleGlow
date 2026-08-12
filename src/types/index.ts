@@ -34,6 +34,10 @@ export interface User {
   name:                    string;
   email:                   string;
   phone?:                  string;
+  dateOfBirth?:            string; // ISO date — used for age groups, safety, minors
+  sex:                    'male' | 'female';
+  heightCm?:               number;
+  weightKg?:               number;
   emergencyContactName?:   string;
   emergencyContactPhone?:  string;
   healthNotes?:            string; // sensitive — restrict read access to admin/coach only
@@ -63,9 +67,9 @@ export interface Tutorial {
   id:              string;
   beltId:          string; // -> Belt.id
   title:           string;
-  description:     string;
+  description?:     string;
   videoUrl?:        string; // absent = not yet recorded/uploaded
-  durationMinutes: number;
+  durationMinutes?: number;
   order:           number;
   category:        TutorialCategory;
   published:       boolean;

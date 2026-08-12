@@ -13,7 +13,7 @@ import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
    ============================================================ */
 
 type BeltId = 'white' | 'yellow' | 'green' | 'blue' | 'red' | 'brown' | 'black';
-type Category = 'taolu' | 'kicks' | 'sanda' | 'gymnastics' | 'flexibility' | 'general';
+type Category = 'taolu' | 'kicks' | 'sanda' | 'gymnastics' | 'flexibility';
 
 type Tutorial = {
   id: string;              // unique across ALL belts, e.g. 'white-1'
@@ -40,7 +40,6 @@ const CATEGORY_LABEL: Record<Category, string> = {
   sanda:       'Sanda / Fight Skill',
   gymnastics:  'Gymnastics',
   flexibility: 'Flexibility',
-  general:     'General Techniques',
 };
 
 // Static grading reference — NOT computed from watch progress, no admin
@@ -112,77 +111,22 @@ const GRADING_REQUIREMENTS: Record<BeltId, { category: string; minPercent?: numb
   ],
 };
 
-const TUTORIALS: Tutorial[] = [
-  // White
-  { id: 'white-1', belt: 'white', title: 'Basic Forms',  completed: true, category: 'general'},
-  { id: 'white-2', belt: 'white', title: 'Basic Stance', durationMinutes: 12, description: 'Master the six basic Wushu stances: Horse stance, Bow stance, Drop stance, Empty stance, Resting stance, and Sitting Stance.', completed: true, category: 'general', videoId: 'LiEMQUIPPQg' },
-  { id: 'white-3', belt: 'white', title: ' 7 Techniques ', completed: true, category: 'general'},
-  { id: 'white-4', belt: 'white', title: '12 Techniques', completed: true, category: 'general'},
-  { id: 'white-5', belt: 'white', title: 'Wushu Forms 1, 2, 3, 4',  completed: true, category: 'taolu'},
-  { id: 'white-6', belt: 'white', title: '16-Form Changquan', durationMinutes: 30, description: 'Tip: Slow down the video playback speed to 0.5x to master the movements step-by-step!', completed: true, category: 'taolu',   videoId: 'ezR_S-38Tp4' },
-  { id: 'white-7', belt: 'white', title: '16-Form Gunshu ', durationMinutes: 2, completed: true, category: 'taolu', videoId: 'rxrNUEB6ZRc' },
-  { id: 'white-8', belt: 'white', title: 'Forward Roll', durationMinutes: 6, description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!', completed: true, category: 'gymnastics', videoId: 'sMlxHIC3yLQ' },
-  { id: 'white-9', belt: 'white', title: 'Pike Forward Roll', durationMinutes: 0.3, description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!', completed: true, category: 'gymnastics', videoId: '8W5UCL15DpQ' },
-  { id: 'white-10', belt: 'white', title: 'Forward Roll Variations',  completed: true, category: 'gymnastics',},
-  { id: 'white-11', belt: 'white', title: 'Handstand Forward Roll Variations', durationMinutes: 1, description: '⚠️ Always practice in a safe, cushioned space. Do not attempt without a coach or spotter!', completed: true, category: 'gymnastics', videoId: '4Aaz3R8P66Y' },
-  { id: 'white-12', belt: 'white', title: 'Four Fundamental Wushu Kicks', durationMinutes: 10, description: 'Master the four fundamental Wushu kicks: Front stretch kick, Side stretch kick, Inside circle kick, and Outside circle kick.', completed: true, category: 'kicks', videoId: '6RBf9qkdkQQ' },
-  { id: 'white-13', belt: 'white', title: 'Flying Front Kick', durationMinutes: 3, completed: true, category: 'kicks', videoId: 'ATaeHVDs9BA' },
-  { id: 'white-14', belt: 'white', title: 'Cartwheel', durationMinutes: 3, completed: true, category: 'kicks', videoId: 'GAbIx6oQAv4' },
-  { id: 'white-15', belt: 'white', title: 'Round Kick', durationMinutes: 5, completed: true, category: 'kicks', videoId: 'BEYGp-npoHc' },
-  { id: 'white-16', belt: 'white', title: 'Butterfly Kick (B-Kick)', durationMinutes: 1, completed: true, category: 'kicks', videoId: 'zPmukqlQnVM' },
-  { id: 'white-17', belt: 'white', title: 'Hook Kick ', durationMinutes: 10, completed: true, category: 'kicks', videoId: 'rw7EvAo-0Og' },
-  { id: 'white-18', belt: 'white', title: 'Punch Techniques ', durationMinutes: 18, completed: true, category: 'sanda', videoId: 'QjuQlw5FYuk' },
-  { id: 'white-19', belt: 'white', title: 'Sanda/fight Techniques ', durationMinutes: 10, completed: true, category: 'sanda', videoId: '9jErNk5igVA' },
-
-
-
-  // Yellow
-  { id: 'yellow-1', belt: 'yellow', title: 'Intermediate Stances',     durationMinutes: 18, description: 'Horse stance, bow stance, and transitions.',       completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
-  { id: 'yellow-2', belt: 'yellow', title: 'Combination Strikes',      durationMinutes: 22, description: 'Linking hand techniques into fluid combinations.', completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
-  { id: 'yellow-3', belt: 'yellow', title: 'Jumping Kicks',            durationMinutes: 25, description: 'Introduction to jumping front and side kicks.',    completed: true, category: 'kicks',   videoId: 'dQw4w9WgXcQ' },
-  { id: 'yellow-4', belt: 'yellow', title: 'Defensive Blocks',         durationMinutes: 20, description: 'Inside, outside, and downward blocking techniques.', completed: true, category: 'general' },
-  { id: 'yellow-5', belt: 'yellow', title: 'Partner Drills',           durationMinutes: 28, description: 'Basic partner work for distance and timing.',       completed: true, category: 'general', videoId: 'dQw4w9WgXcQ' },
-  { id: 'yellow-6', belt: 'yellow', title: 'Yellow Belt Form (Taolu)', durationMinutes: 35, description: 'Full yellow belt form combining all techniques.',   completed: true, category: 'taolu',   videoId: 'dQw4w9WgXcQ' },
-
-  // Green
-  { id: 'green-1', belt: 'green', title: 'Advanced Footwork',            durationMinutes: 20, description: 'Circular stepping and evasion patterns.',        completed: true,  category: 'general',     videoId: 'dQw4w9WgXcQ' },
-  { id: 'green-2', belt: 'green', title: 'Spinning Techniques',          durationMinutes: 24, description: 'Spinning back kick and spinning heel kick.',     completed: true,  category: 'kicks',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'green-3', belt: 'green', title: 'Low Sweeps',                   durationMinutes: 22, description: 'Leg sweep fundamentals and entry setups.',       completed: true,  category: 'kicks',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'green-4', belt: 'green', title: 'Aerial Butterfly Kick',        durationMinutes: 28, description: 'Introductory aerial kick progression and landing safety.', completed: false, category: 'kicks', videoId: 'dQw4w9WgXcQ' },
-  { id: 'green-5', belt: 'green', title: 'Basic Sanda Sparring',         durationMinutes: 30, description: 'Introduction to Sanda combat principles.',       completed: true,  category: 'sanda' },
-  { id: 'green-6', belt: 'green', title: 'Acrobatic Rolls',              durationMinutes: 26, description: 'Forward and backward rolls for safe falling.',   completed: false, category: 'gymnastics',  videoId: 'dQw4w9WgXcQ' },
-  { id: 'green-7', belt: 'green', title: 'Green Belt Form (Taolu)',      durationMinutes: 38, description: 'Full green belt form combining all techniques.', completed: false, category: 'taolu',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'green-8', belt: 'green', title: 'Staff Form Basics (Weapons)',  durationMinutes: 32, description: 'Introductory staff form and basic weapon handling.', completed: false, category: 'taolu' },
-  { id: 'green-9', belt: 'green', title: 'Split & Flexibility Training', durationMinutes: 20, description: 'Front and side split progressions, hip openers.', completed: false, category: 'flexibility', videoId: 'dQw4w9WgXcQ' },
-
-  // Blue — placeholders, replace title/description/videoId with real content
-  { id: 'blue-1', belt: 'blue', title: 'Blue Belt Form (Taolu)',   durationMinutes: 30, description: 'Full blue belt form.',            completed: false, category: 'taolu',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'blue-2', belt: 'blue', title: 'Intermediate Kicks',       durationMinutes: 25, description: 'Placeholder — replace with real content.', completed: false, category: 'kicks',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'blue-3', belt: 'blue', title: 'Sanda Combinations',       durationMinutes: 28, description: 'Placeholder — replace with real content.', completed: false, category: 'sanda' },
-  { id: 'blue-4', belt: 'blue', title: 'Gymnastics Progression',   durationMinutes: 24, description: 'Placeholder — replace with real content.', completed: false, category: 'gymnastics',  videoId: 'dQw4w9WgXcQ' },
-  { id: 'blue-5', belt: 'blue', title: 'Flexibility Training',     durationMinutes: 20, description: 'Placeholder — replace with real content.', completed: false, category: 'flexibility', videoId: 'dQw4w9WgXcQ' },
-
-  // Red — placeholders, replace title/description/videoId with real content
-  { id: 'red-1', belt: 'red', title: 'Red Belt Form (Taolu)',     durationMinutes: 32, description: 'Full red belt form.',              completed: false, category: 'taolu',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'red-2', belt: 'red', title: 'Advanced Kicks',            durationMinutes: 27, description: 'Placeholder — replace with real content.', completed: false, category: 'kicks',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'red-3', belt: 'red', title: 'Sanda Sparring Drills',     durationMinutes: 30, description: 'Placeholder — replace with real content.', completed: false, category: 'sanda' },
-  { id: 'red-4', belt: 'red', title: 'Gymnastics Progression',    durationMinutes: 26, description: 'Placeholder — replace with real content.', completed: false, category: 'gymnastics',  videoId: 'dQw4w9WgXcQ' },
-  { id: 'red-5', belt: 'red', title: 'Flexibility Training',      durationMinutes: 20, description: 'Placeholder — replace with real content.', completed: false, category: 'flexibility', videoId: 'dQw4w9WgXcQ' },
-
-  // Brown — placeholders, replace title/description/videoId with real content
-  { id: 'brown-1', belt: 'brown', title: 'Brown Belt Form (Taolu)', durationMinutes: 34, description: 'Full brown belt form.',            completed: false, category: 'taolu',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'brown-2', belt: 'brown', title: 'Aerial Kicks',            durationMinutes: 30, description: 'Placeholder — replace with real content.', completed: false, category: 'kicks',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'brown-3', belt: 'brown', title: 'Sanda Sparring',          durationMinutes: 32, description: 'Placeholder — replace with real content.', completed: false, category: 'sanda' },
-  { id: 'brown-4', belt: 'brown', title: 'Gymnastics Progression',  durationMinutes: 28, description: 'Placeholder — replace with real content.', completed: false, category: 'gymnastics',  videoId: 'dQw4w9WgXcQ' },
-  { id: 'brown-5', belt: 'brown', title: 'Flexibility Training',    durationMinutes: 20, description: 'Placeholder — replace with real content.', completed: false, category: 'flexibility', videoId: 'dQw4w9WgXcQ' },
-
-  // Black — placeholders, replace title/description/videoId with real content
-  { id: 'black-1', belt: 'black', title: 'Black Belt Form (Taolu)', durationMinutes: 40, description: 'Full black belt form.',            completed: false, category: 'taolu',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'black-2', belt: 'black', title: 'Master-Level Kicks',      durationMinutes: 32, description: 'Placeholder — replace with real content.', completed: false, category: 'kicks',       videoId: 'dQw4w9WgXcQ' },
-  { id: 'black-3', belt: 'black', title: 'Advanced Sanda',          durationMinutes: 34, description: 'Placeholder — replace with real content.', completed: false, category: 'sanda' },
-  { id: 'black-4', belt: 'black', title: 'Gymnastics Mastery',      durationMinutes: 30, description: 'Placeholder — replace with real content.', completed: false, category: 'gymnastics',  videoId: 'dQw4w9WgXcQ' },
-  { id: 'black-5', belt: 'black', title: 'Flexibility Training',    durationMinutes: 20, description: 'Placeholder — replace with real content.', completed: false, category: 'flexibility', videoId: 'dQw4w9WgXcQ' },
-];
+// Derived from the single shared tutorial list (src/data/tutorials.ts) and
+// CURRENT_USER_PROGRESS — edit tutorials in that file, not here.
+const TUTORIALS: Tutorial[] = SHARED_TUTORIALS.map((t) => {
+  const beltSlug = getBeltById(t.beltId)!.slug as BeltId;
+  const videoId = t.videoUrl ? t.videoUrl.split('v=')[1] : undefined;
+  return {
+    id: t.id,
+    belt: beltSlug,
+    title: t.title,
+    durationMinutes: t.durationMinutes,
+    description: t.description,
+    completed: isTutorialCompleted(t.id),
+    category: t.category as Category,
+    videoId,
+  };
+});
 
 function formatDuration(minutes?: number): string {
   return minutes != null ? `${minutes} min` : '';
@@ -212,8 +156,7 @@ function CategoryIcon({ category, size = 16 }: { category: Category; size?: numb
       return <svg {...common}><path d="M4 12 A8 8 0 1 1 12 4" /></svg>;
     case 'flexibility': // stretch curve
       return <svg {...common}><path d="M4 16 C4 10 16 10 16 4" /></svg>;
-    case 'general':
-    default: // asterisk
+    default: // asterisk fallback
       return <svg {...common}><path d="M10 4 L10 16 M4.5 7 L15.5 13 M15.5 7 L4.5 13" /></svg>;
   }
 }
@@ -354,13 +297,13 @@ function TutorialRow({
         {/* Info */}
         <span className="tutorial-info">
           <span className="tutorial-title">{tutorial.title}</span>
-          {isActive && tutorial.description && (
-            <span className="tutorial-description">{tutorial.description}</span>
-          )}
+          {isActive && tutorial.description && <span className="tutorial-description">{tutorial.description}</span>}
           <span className="tutorial-meta">
-            {hasVideo && tutorial.durationMinutes != null
+            {tutorial.durationMinutes != null
               ? formatDuration(tutorial.durationMinutes)
-              : 'In-person session'}
+              : hasVideo
+                ? 'Duration TBD'
+                : 'In-person session'}
           </span>
           <span className="cat-tag">
             {CATEGORY_LABEL[tutorial.category]}

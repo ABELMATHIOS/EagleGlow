@@ -189,6 +189,11 @@ export default function AdminClasses() {
           font-family: 'Inter', sans-serif;
           outline: none;
           cursor: pointer;
+          
+        }
+        .admin-select option {
+          background: #111;
+          color: #fff;
         }
         .admin-btn-gold {
           background: #C9A84C;

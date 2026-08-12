@@ -21,6 +21,10 @@ export default function Register() {
     fullName: '',
     email: '',
     phone: '',
+    dateOfBirth: '',
+    sex: '' as '' | 'male' | 'female',
+    heightCm: '',
+    weightKg: '',
     password: '',
     confirmPassword: '',
     registrationType: 'new' as 'new' | 'training' | 'returning',
@@ -523,6 +527,83 @@ export default function Register() {
                     autoComplete="tel"
                     required
                   />
+                </div>
+
+                {/* Date of Birth */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <label style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                    color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                  }}>
+                    Date of Birth
+                  </label>
+                  <input
+                    className="reg-input"
+                    type="date"
+                    value={form.dateOfBirth}
+                    onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Sex */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <label style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                    color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                  }}>
+                    Sex
+                  </label>
+                  <select
+                    className="reg-input"
+                    value={form.sex}
+                    onChange={(e) => handleChange('sex', e.target.value)}
+                    required
+                  >
+                    <option value="" disabled>Select</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+
+                {/* Height & Weight (optional) */}
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
+                    <label style={{
+                      fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                      color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                    }}>
+                      Height (cm)
+                    </label>
+                    <input
+                      className="reg-input"
+                      type="number"
+                      min={0}
+                      placeholder="170"
+                      value={form.heightCm}
+                      onChange={(e) => handleChange('heightCm', e.target.value)}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
+                    <label style={{
+                      fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                      color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                    }}>
+                      Weight (kg)
+                    </label>
+                    <input
+                      className="reg-input"
+                      type="number"
+                      min={0}
+                      placeholder="65"
+                      value={form.weightKg}
+                      onChange={(e) => handleChange('weightKg', e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <div className="section-divider" />
