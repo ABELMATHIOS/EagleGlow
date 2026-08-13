@@ -1,27 +1,36 @@
 "use client";
 
 import { useState, useRef, ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import { BELTS, getBeltById } from "@/src/data/belts";
-import { CURRENT_USER } from "@/src/data/members";
+import type { CurrentUserProfile } from "@/src/lib/get-profile";
 
-// Mock member data — replace with real Supabase data later. Pulled from the
-// shared CURRENT_USER record so Profile and Dashboard can't drift apart.
-const MEMBER = {
-  name: CURRENT_USER.name,
-  email: CURRENT_USER.email,
-  phone: CURRENT_USER.phone ?? "",
-  emergencyName: CURRENT_USER.emergencyContactName ?? "",
-  emergencyPhone: CURRENT_USER.emergencyContactPhone ?? "",
-  healthNotes: CURRENT_USER.healthNotes ?? "",
-  joinDate: new Date(CURRENT_USER.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-  beltOrder: getBeltById(CURRENT_USER.beltId ?? "belt-1")!.order,
-  avatar: (CURRENT_USER.photoUrl ?? null) as string | null,
+type ProfileProps = {
+  user: CurrentUserProfile;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/; // starts with + or a digit, at least 7 more digits/spaces/dashes
 
-export default function ProfilePage() {
+export default function ProfilePage({ user }: ProfileProps) {
+  const router = useRouter();
+
+  // Real member data, passed in from app/profile/page.tsx (a Server
+  // Component that fetches it via getCurrentUserProfile()). Replaces the
+  // old CURRENT_USER mock import — MEMBER keeps the same shape as before so
+  // everything below this line works unchanged.
+  const MEMBER = {
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    emergencyName: user.emergencyContactName,
+    emergencyPhone: user.emergencyContactPhone,
+    healthNotes: user.healthNotes,
+    joinDate: new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+    beltOrder: getBeltById(user.beltId ?? "belt-1")!.order,
+    avatar: user.photoUrl ?? null,
+  };
+
   // ── Editable profile fields ──
   // "saved" = last committed values (what's shown when not editing).
   // "draft" = in-progress edits, only committed to "saved" on Save; discarded on Cancel.
@@ -36,6 +45,8 @@ export default function ProfilePage() {
   const [draft, setDraft] = useState(saved);
   const [editing, setEditing] = useState(false);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
  const currentBelt = BELTS.find((b) => b.order === MEMBER.beltOrder)!;
@@ -49,26 +60,40 @@ export default function ProfilePage() {
   const startEditing = () => {
     setDraft(saved);
     setProfileSaveSuccess(false);
+    setSaveError(null);
     setEditing(true);
   };
 
   const cancelEditing = () => {
     setDraft(saved);
+    setSaveError(null);
     setEditing(false);
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
     if (!profileValid) return;
-    // NOTE: no backend exists yet — this only updates local component state.
-    // Once Supabase is wired up, this should call something like
-    // supabase.from('users').update({...draft}).eq('id', currentUserId)
-    // and surface real server-side errors here instead of always succeeding.
-    // healthNotes specifically is sensitive — restrict read access to
-    // instructors/admins only (e.g. via RLS), not general member views.
-    setSaved(draft);
-    setEditing(false);
-    setProfileSaveSuccess(true);
-    setTimeout(() => setProfileSaveSuccess(false), 2500);
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to save profile");
+      }
+      setSaved(draft);
+      setEditing(false);
+      setProfileSaveSuccess(true);
+      setTimeout(() => setProfileSaveSuccess(false), 2500);
+      router.refresh(); // re-pulls the server-fetched user so the page reflects the DB
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePhotoClick = () => {
@@ -109,7 +134,7 @@ export default function ProfilePage() {
   const submitPasswordChange = () => {
     if (!passwordFormValid) return;
     // NOTE: no backend exists yet — this only validates the new/confirm match and
-    // length client-side. Once Supabase Auth is wired up, this should call
+    // length client-side. Once wired up, this should call
     // supabase.auth.updateUser({ password: newPassword }) after re-authenticating
     // with currentPassword, and surface real server-side errors here instead of
     // this always-succeeds mock.
@@ -145,8 +170,8 @@ export default function ProfilePage() {
 
   const submitCorrectionRequest = () => {
     if (!correctionValid) return;
-    // NOTE: no backend exists yet — this is UI only. Once Supabase exists, this
-    // should write a row an admin can review/approve (e.g. a
+    // NOTE: no backend exists yet — this is UI only. Once a place to store it
+    // exists, this should write a row an admin can review/approve (e.g. a
     // `name_correction_requests` table, or a membership_history-style entry with
     // reason set to the member's note) rather than editing MEMBER.name directly —
     // name changes should stay admin-approved, same as belt assignment.
@@ -555,6 +580,9 @@ export default function ProfilePage() {
           {profileSaveSuccess && (
             <p className="success-banner">✓ Profile updated.</p>
           )}
+          {saveError && (
+            <p className="field-error" style={{ marginBottom: "20px" }}>{saveError}</p>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px" }}>
             {/* Full Name — read only, admin-controlled */}
@@ -716,8 +744,10 @@ export default function ProfilePage() {
 
           {editing && (
             <div style={{ marginTop: "24px", display: "flex", gap: "12px" }}>
-              <button className="save-btn" onClick={saveEditing} disabled={!profileValid}>SAVE CHANGES</button>
-              <button className="edit-btn" onClick={cancelEditing}>CANCEL</button>
+              <button className="save-btn" onClick={saveEditing} disabled={!profileValid || saving}>
+                {saving ? "SAVING..." : "SAVE CHANGES"}
+              </button>
+              <button className="edit-btn" onClick={cancelEditing} disabled={saving}>CANCEL</button>
             </div>
           )}
         </div>

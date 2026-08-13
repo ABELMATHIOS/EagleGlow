@@ -9,7 +9,7 @@ import { User } from "@/src/types";
 export const MOCK_MEMBERS: User[] = [
   {
     id: "1", name: "Kaleb Haile", email: "kaleb@email.com", phone: "+251-91-111-1111",
-    role: "member", status: "pending", registrationType: "new",
+    role: "member",sex:"male", status: "pending", registrationType: "new",
     previousBelt: "", yearJoined: "", gapReason: "",
     emergencyContactName: "Selamawit Haile", emergencyContactPhone: "+251-91-111-9999",
     healthNotes: "", beltId: "belt-1", adminNotes: [], nameCorrectionRequest: null,
@@ -17,7 +17,7 @@ export const MOCK_MEMBERS: User[] = [
   },
   {
     id: "2", name: "Meron Tesfaye", email: "meron@email.com", phone: "+251-91-222-2222",
-    role: "member", status: "active", registrationType: "returning",
+    role: "member",sex:"male", status: "active", registrationType: "returning",
     previousBelt: "Yellow", yearJoined: "2023", gapReason: "Moved for university, resumed after graduating.",
     emergencyContactName: "Abel Tesfaye", emergencyContactPhone: "+251-91-222-9999",
     healthNotes: "", beltId: "belt-2", adminNotes: [], nameCorrectionRequest: null,
@@ -25,7 +25,7 @@ export const MOCK_MEMBERS: User[] = [
   },
   {
     id: "3", name: "Samuel Girma", email: "samuel@email.com", phone: "+251-91-333-3333",
-    role: "member", status: "active", registrationType: "training",
+    role: "member",sex:"male", status: "active", registrationType: "training",
     previousBelt: "White", yearJoined: "2024", gapReason: "",
     emergencyContactName: "Hana Girma", emergencyContactPhone: "+251-91-333-9999",
     healthNotes: "", beltId: "belt-3", adminNotes: [], nameCorrectionRequest: null,
@@ -33,7 +33,7 @@ export const MOCK_MEMBERS: User[] = [
   },
   {
     id: "4", name: "Liya Bekele", email: "liya@email.com", phone: "+251-91-444-4444",
-    role: "member", status: "pending", registrationType: "new",
+    role: "member",sex:"male", status: "pending", registrationType: "new",
     previousBelt: "", yearJoined: "", gapReason: "",
     emergencyContactName: "Tewodros Bekele", emergencyContactPhone: "+251-91-444-9999",
     healthNotes: "", beltId: "belt-1", adminNotes: [], nameCorrectionRequest: null,
@@ -41,7 +41,7 @@ export const MOCK_MEMBERS: User[] = [
   },
   {
     id: "5", name: "Dawit Alemu", email: "dawit@email.com", phone: "+251-91-555-5555",
-    role: "member", status: "active", registrationType: "new",
+    role: "member",sex:"male", status: "active", registrationType: "new",
     previousBelt: "", yearJoined: "", gapReason: "",
     emergencyContactName: "Rahel Alemu", emergencyContactPhone: "+251-91-555-9999",
     healthNotes: "", beltId: "belt-4", adminNotes: [], nameCorrectionRequest: null,
@@ -54,7 +54,7 @@ export const MOCK_MEMBERS: User[] = [
 // whoever the session belongs to.
 export const CURRENT_USER: User = {
   id: "1001", name: "Yonas Tadesse", email: "yonas@gmail.com", phone: "+251-911-234-567",
-  role: "member", status: "active", registrationType: "new",
+  role: "member", sex:"male", status: "active", registrationType: "new",
   previousBelt: "", yearJoined: "2022", gapReason: "",
   emergencyContactName: "Selam Tadesse", emergencyContactPhone: "+251-911-987-654",
   healthNotes: "", photoUrl: undefined, beltId: "belt-3", adminNotes: [],

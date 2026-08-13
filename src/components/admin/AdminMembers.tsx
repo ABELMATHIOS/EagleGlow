@@ -3,16 +3,16 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { AdminNote, NameCorrectionRequest, Status, RegistrationType } from '@/src/types';
-import { MOCK_MEMBERS as SHARED_MEMBERS } from '@/src/data/members';
-import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
+import { AdminNote, NameCorrectionRequest, Status, RegistrationType, User, Belt } from '@/src/types';
+import { approveUser, promoteBelt, updateMemberStatus } from '@/src/lib/admin-action';
 
 // This admin view keeps its own flat shape (fullName/belt-as-name instead of
-// name/beltId) because that's what this screen's filtering, CSV export, and
-// promotion logic (BELTS.indexOf) all key off — but the underlying records
-// now come from the single shared member list in src/data/members.ts instead
-// of a second hardcoded copy, so admin edits and the canonical record can't
-// drift apart the way they used to.
+// name/beltId) because that's what this screen's filtering and CSV export
+// key off — but beltId is carried alongside belt (name) so promotion writes
+// a real Supabase belt_id instead of a display string. The underlying
+// records now come from real Supabase data (fetched server-side via
+// getAllMembers() + getBelts() and passed in as props) instead of mock data
+// — see toMembers() below.
 type Member = {
   id: string;
   fullName: string;
@@ -27,16 +27,47 @@ type Member = {
   healthNotes: string;
   adminNotes: AdminNote[];
   nameCorrectionRequest: NameCorrectionRequest | null;
+  beltId: string;
   belt: string;
   status: Status;
   registeredAt: string;
 };
 
-const BELTS = SHARED_BELTS.map((b) => b.name);
-const BELT_COLORS: Record<string, string> = {
-  White: '#FFFFFF', Yellow: '#FFD700', Green: '#2ECC71',
-  Blue: '#3498DB',  Red: '#E74C3C',   Brown: '#8B4513', Black: '#C9A84C',
+type AdminMembersProps = {
+  initialMembers: User[];
+  belts: Belt[]; // real Supabase belts, already sorted by `order` ascending
 };
+
+// Converts the real User rows (from getAllMembers()) into this screen's flat
+// Member shape. `belts` is the real Supabase belt list (order ascending) —
+// used to resolve belt_id -> display name/color instead of the old mock
+// src/data/belts.ts, whose fake ids ("belt-1"..) didn't match real FKs.
+function toMembers(users: User[], belts: Belt[]): Member[] {
+  const beltById = new Map(belts.map((b) => [b.id, b]));
+  const fallbackBelt = belts[0];
+  return users.map((u) => {
+    const belt = (u.beltId && beltById.get(u.beltId)) || fallbackBelt;
+    return {
+      id: u.id,
+      fullName: u.name,
+      email: u.email,
+      phone: u.phone ?? '',
+      registrationType: u.registrationType,
+      previousBelt: u.previousBelt ?? '',
+      yearJoined: u.yearJoined ?? '',
+      gapReason: u.gapReason ?? '',
+      emergencyName: u.emergencyContactName ?? '',
+      emergencyPhone: u.emergencyContactPhone ?? '',
+      healthNotes: u.healthNotes ?? '',
+      adminNotes: u.adminNotes,
+      nameCorrectionRequest: u.nameCorrectionRequest,
+      beltId: belt?.id ?? '',
+      belt: belt?.name ?? 'White',
+      status: u.status,
+      registeredAt: u.createdAt,
+    };
+  });
+}
 
 const registrationTypeLabel: Record<Member['registrationType'], string> = {
   new: 'New',
@@ -69,36 +100,31 @@ const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Health / Medical Notes',  get: (m) => m.healthNotes },
   { header: 'Registered On',           get: (m) => m.registeredAt },
 ];
-// Derived from the single shared member list (src/data/members.ts) instead
-// of a second hardcoded array, so this view and Profile/Dashboard can't
-// silently drift apart the way the old duplicated mock data could.
-const MOCK_MEMBERS: Member[] = SHARED_MEMBERS.map((u) => ({
-  id: u.id,
-  fullName: u.name,
-  email: u.email,
-  phone: u.phone ?? '',
-  registrationType: u.registrationType,
-  previousBelt: u.previousBelt ?? '',
-  yearJoined: u.yearJoined ?? '',
-  gapReason: u.gapReason ?? '',
-  emergencyName: u.emergencyContactName ?? '',
-  emergencyPhone: u.emergencyContactPhone ?? '',
-  healthNotes: u.healthNotes ?? '',
-  adminNotes: u.adminNotes,
-  nameCorrectionRequest: u.nameCorrectionRequest,
-  belt: getBeltById(u.beltId ?? 'belt-1')!.name,
-  status: u.status,
-  registeredAt: u.createdAt,
-}));
 
-export default function AdminMembers() {
-  const [members,       setMembers]       = useState<Member[]>(MOCK_MEMBERS);
+export default function AdminMembers({ initialMembers, belts }: AdminMembersProps) {
+  const [members,       setMembers]       = useState<Member[]>(() => toMembers(initialMembers, belts));
   const [search,        setSearch]        = useState('');
   const [filterStatus,  setFilterStatus]  = useState('all');
   const [filterBelt,    setFilterBelt]    = useState('all');
   const [selected,      setSelected]      = useState<string | null>(null);
   const [promoting,     setPromoting]     = useState(false);
-  const [promoteTarget, setPromoteTarget] = useState('');
+  const [promoteTarget, setPromoteTarget] = useState(''); // belt id, not name
+  const beltById = new Map(belts.map((b) => [b.id, b]));
+  const beltByName = new Map(belts.map((b) => [b.name, b]));
+
+  // Real: calls PATCH /api/admin/users/[id]/belt. Mirrors approveMember's
+  // loading/error pattern below.
+  const [promotingSave, setPromotingSave] = useState<string | null>(null); // member id currently saving
+  const [promoteError,  setPromoteError]  = useState<string | null>(null);
+
+  // Real: calls PATCH /api/admin/users/[id]/status. Shared by Decline,
+  // Suspend, Reactivate, and Mark Serving — all just status transitions.
+  const [statusSaving, setStatusSaving] = useState<string | null>(null); // member id currently saving
+  const [statusError,  setStatusError]  = useState<string | null>(null);
+
+  // Approve action — the only real (Supabase-backed) action on this page so far.
+  const [approving,    setApproving]    = useState<string | null>(null); // member id currently being approved
+  const [approveError, setApproveError] = useState<string | null>(null);
 
   // Contact-info inline editing (per selected member)
   const [editingContact, setEditingContact] = useState(false);
@@ -127,6 +153,9 @@ export default function AdminMembers() {
     setPromoting(false);
     setEditingContact(false);
     setNewNote('');
+    setApproveError(null);
+    setPromoteError(null);
+    setStatusError(null);
     if (!isSame) {
       const m = members.find((mm) => mm.id === id);
       if (m) setContactDraft({ email: m.email, phone: m.phone, emergencyName: m.emergencyName, emergencyPhone: m.emergencyPhone });
@@ -134,25 +163,71 @@ export default function AdminMembers() {
   };
 
   // ── Actions ──
-  const approveMember = (id: string) => updateMember(id, { status: 'active' });
-  const declineMember = (id: string) => updateMember(id, { status: 'withdrawn' });
-  const reactivateMember = (id: string) => updateMember(id, { status: 'active' });
-  const suspendMember = (id: string) => updateMember(id, { status: 'paused' });
-  const markServing = (id: string) => updateMember(id, { status: 'serving' });
 
-  const startPromote = (currentBelt: string) => {
-    const next = BELTS[BELTS.indexOf(currentBelt) + 1];
-    setPromoteTarget(next ?? '');
+  // Real: calls the Supabase-backed approve endpoint (POST
+  // /api/admin/users/[id]/approve), which flips status → active, role →
+  // member server-side. Local state only updates after that succeeds.
+  const approveMember = async (id: string) => {
+    setApproving(id);
+    setApproveError(null);
+    try {
+      await approveUser(id);
+      updateMember(id, { status: 'active' });
+    } catch (err) {
+      setApproveError(err instanceof Error ? err.message : 'Failed to approve member');
+    } finally {
+      setApproving(null);
+    }
+  };
+
+  // Real: all four call PATCH /api/admin/users/[id]/status. Local state
+  // only updates after the request succeeds.
+  const setMemberStatus = async (id: string, status: Member['status']) => {
+    setStatusSaving(id);
+    setStatusError(null);
+    try {
+      await updateMemberStatus(id, status);
+      updateMember(id, { status });
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setStatusSaving(null);
+    }
+  };
+
+  const declineMember    = (id: string) => setMemberStatus(id, 'withdrawn');
+  const reactivateMember = (id: string) => setMemberStatus(id, 'active');
+  const suspendMember    = (id: string) => setMemberStatus(id, 'paused');
+  const markServing      = (id: string) => setMemberStatus(id, 'serving');
+
+  const startPromote = (currentBeltId: string) => {
+    const idx = belts.findIndex((b) => b.id === currentBeltId);
+    const next = idx >= 0 ? belts[idx + 1] : undefined;
+    setPromoteTarget(next?.id ?? '');
+    setPromoteError(null);
     setPromoting(true);
   };
 
-  const confirmPromote = (id: string) => {
+  // Real: calls PATCH /api/admin/users/[id]/belt, which writes the real
+  // belt_id server-side and flips status -> graduated if this is the
+  // highest-order belt. Local state only updates after that succeeds.
+  const confirmPromote = async (id: string) => {
     if (!promoteTarget) return;
-    // Reaching Black Belt = graduated, per project rule — flip status automatically.
-    const patch: Partial<Member> = { belt: promoteTarget };
-    if (promoteTarget === 'Black') patch.status = 'graduated';
-    updateMember(id, patch);
-    setPromoting(false);
+    setPromotingSave(id);
+    setPromoteError(null);
+    try {
+      await promoteBelt(id, promoteTarget);
+      const newBelt = beltById.get(promoteTarget);
+      const isTopBelt = belts.length > 0 && belts[belts.length - 1].id === promoteTarget;
+      const patch: Partial<Member> = { beltId: promoteTarget, belt: newBelt?.name ?? '' };
+      if (isTopBelt) patch.status = 'graduated';
+      updateMember(id, patch);
+      setPromoting(false);
+    } catch (err) {
+      setPromoteError(err instanceof Error ? err.message : 'Failed to update belt');
+    } finally {
+      setPromotingSave(null);
+    }
   };
 
   const contactValid = EMAIL_RE.test(contactDraft.email) && PHONE_RE.test(contactDraft.phone) && PHONE_RE.test(contactDraft.emergencyPhone);
@@ -356,6 +431,7 @@ export default function AdminMembers() {
           transition: all 0.18s;
         }
         .admin-btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.8); }
+        .admin-btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
         .admin-btn-danger {
           background: rgba(231,76,60,0.1);
           color: #E74C3C;
@@ -474,7 +550,7 @@ export default function AdminMembers() {
           onChange={(e) => setFilterBelt(e.target.value)}
         >
           <option value="all">All Belts</option>
-          {BELTS.map((b) => <option key={b} value={b}>{b}</option>)}
+          {belts.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
         </select>
       </div>
 
@@ -514,7 +590,7 @@ export default function AdminMembers() {
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <span style={{
                         width: 8, height: 8, borderRadius: '50%',
-                        background: BELT_COLORS[m.belt],
+                        background: beltByName.get(m.belt)?.color,
                         border: m.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
                         flexShrink: 0,
                       }} />
@@ -626,7 +702,7 @@ export default function AdminMembers() {
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                   <span style={{
                     width: 10, height: 10, borderRadius: '50%',
-                    background: BELT_COLORS[selectedMember.belt],
+                    background: beltByName.get(selectedMember.belt)?.color,
                     border: selectedMember.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
                   }} />
                   {selectedMember.belt}
@@ -779,11 +855,22 @@ export default function AdminMembers() {
                 {/* Pending — Approve or Decline */}
                 {selectedMember.status === 'pending' && (
                   <>
-                    <button className="admin-btn-gold" style={{ width: '100%' }} onClick={() => approveMember(selectedMember.id)}>
-                      ✓ Approve Member
+                    <button
+                      className="admin-btn-gold"
+                      style={{ width: '100%' }}
+                      onClick={() => approveMember(selectedMember.id)}
+                      disabled={approving === selectedMember.id}
+                    >
+                      {approving === selectedMember.id ? 'Approving...' : '✓ Approve Member'}
                     </button>
-                    <button className="admin-btn-danger" style={{ width: '100%' }} onClick={() => declineMember(selectedMember.id)}>
-                      ✕ Decline Registration
+                    {approveError && <p className="field-error">{approveError}</p>}
+                    <button
+                      className="admin-btn-danger"
+                      style={{ width: '100%' }}
+                      onClick={() => declineMember(selectedMember.id)}
+                      disabled={statusSaving === selectedMember.id}
+                    >
+                      {statusSaving === selectedMember.id ? 'Declining...' : '✕ Decline Registration'}
                     </button>
                   </>
                 )}
@@ -795,8 +882,8 @@ export default function AdminMembers() {
                       <button
                         className="admin-btn-gold"
                         style={{ width: '100%' }}
-                        onClick={() => startPromote(selectedMember.belt)}
-                        disabled={selectedMember.belt === 'Black'}
+                        onClick={() => startPromote(selectedMember.beltId)}
+                        disabled={belts.length > 0 && selectedMember.beltId === belts[belts.length - 1].id}
                       >
                         ↑ Promote Belt
                       </button>
@@ -808,49 +895,88 @@ export default function AdminMembers() {
                           value={promoteTarget}
                           onChange={(e) => setPromoteTarget(e.target.value)}
                         >
-                          {BELTS.slice(BELTS.indexOf(selectedMember.belt) + 1).map((b) => (
-                            <option key={b} value={b}>{b} Belt{b === 'Black' ? ' — auto-marks Graduated' : ''}</option>
-                          ))}
+                          {belts
+                            .slice(belts.findIndex((b) => b.id === selectedMember.beltId) + 1)
+                            .map((b, i, arr) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name} Belt{i === arr.length - 1 ? ' — auto-marks Graduated' : ''}
+                              </option>
+                            ))}
                         </select>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="admin-btn-gold" style={{ flex: 1 }} onClick={() => confirmPromote(selectedMember.id)}>Confirm</button>
+                          <button
+                            className="admin-btn-gold"
+                            style={{ flex: 1 }}
+                            onClick={() => confirmPromote(selectedMember.id)}
+                            disabled={promotingSave === selectedMember.id}
+                          >
+                            {promotingSave === selectedMember.id ? 'Saving...' : 'Confirm'}
+                          </button>
                           <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setPromoting(false)}>Cancel</button>
                         </div>
+                        {promoteError && <p className="field-error">{promoteError}</p>}
                       </div>
                     )}
-                    <button className="admin-btn-ghost" style={{ width: '100%' }} onClick={() => suspendMember(selectedMember.id)}>
-                      Suspend Member
+                    <button
+                      className="admin-btn-ghost"
+                      style={{ width: '100%' }}
+                      onClick={() => suspendMember(selectedMember.id)}
+                      disabled={statusSaving === selectedMember.id}
+                    >
+                      {statusSaving === selectedMember.id ? 'Saving...' : 'Suspend Member'}
                     </button>
                   </>
                 )}
 
                 {/* Graduated — offer Serving */}
                 {selectedMember.status === 'graduated' && (
-                  <button className="admin-btn-gold" style={{ width: '100%' }} onClick={() => markServing(selectedMember.id)}>
-                    ★ Mark as Serving (Assistant Instructor)
+                  <button
+                    className="admin-btn-gold"
+                    style={{ width: '100%' }}
+                    onClick={() => markServing(selectedMember.id)}
+                    disabled={statusSaving === selectedMember.id}
+                  >
+                    {statusSaving === selectedMember.id ? 'Saving...' : '★ Mark as Serving (Assistant Instructor)'}
                   </button>
                 )}
 
                 {/* Serving — can still be suspended if needed */}
                 {selectedMember.status === 'serving' && (
-                  <button className="admin-btn-ghost" style={{ width: '100%' }} onClick={() => suspendMember(selectedMember.id)}>
-                    Suspend Member
+                  <button
+                    className="admin-btn-ghost"
+                    style={{ width: '100%' }}
+                    onClick={() => suspendMember(selectedMember.id)}
+                    disabled={statusSaving === selectedMember.id}
+                  >
+                    {statusSaving === selectedMember.id ? 'Saving...' : 'Suspend Member'}
                   </button>
                 )}
 
                 {/* Paused — Reactivate */}
                 {selectedMember.status === 'paused' && (
-                  <button className="admin-btn-gold" style={{ width: '100%' }} onClick={() => reactivateMember(selectedMember.id)}>
-                    ↺ Reactivate Member
+                  <button
+                    className="admin-btn-gold"
+                    style={{ width: '100%' }}
+                    onClick={() => reactivateMember(selectedMember.id)}
+                    disabled={statusSaving === selectedMember.id}
+                  >
+                    {statusSaving === selectedMember.id ? 'Saving...' : '↺ Reactivate Member'}
                   </button>
                 )}
 
                 {/* Withdrawn — Reactivate too, in case it was a mistake */}
                 {selectedMember.status === 'withdrawn' && (
-                  <button className="admin-btn-ghost" style={{ width: '100%' }} onClick={() => reactivateMember(selectedMember.id)}>
-                    ↺ Reactivate Member
+                  <button
+                    className="admin-btn-ghost"
+                    style={{ width: '100%' }}
+                    onClick={() => reactivateMember(selectedMember.id)}
+                    disabled={statusSaving === selectedMember.id}
+                  >
+                    {statusSaving === selectedMember.id ? 'Saving...' : '↺ Reactivate Member'}
                   </button>
                 )}
+
+                {statusError && <p className="field-error">{statusError}</p>}
               </div>
             </div>
           )}
