@@ -1,10 +1,24 @@
+import { redirect } from 'next/navigation';
 import Dashboard from '@/src/components/members/Dashboard';
+import { getCurrentUser } from '@/src/lib/get-current-user';
 
-export const metadata = {
-  title: 'Dashboard | EagleGlow Wushu & Fitness Center',
-  description: 'Your EagleGlow member dashboard — track your belt progress and tutorials.',
-};
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
 
-export default function DashboardPage() {
-  return <Dashboard />;
+  // Belt-and-braces check — middleware already handles this redirect, but
+  // this keeps the page safe to render even if it's ever reached directly.
+  if (!user) {
+    redirect('/auth/login?redirectTo=/dashboard');
+  }
+
+  return (
+    <Dashboard
+      user={{
+        name: user.name,
+        beltId: user.beltId,
+        status: user.status,
+        createdAt: user.createdAt,
+      }}
+    />
+  );
 }

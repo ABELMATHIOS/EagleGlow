@@ -1,24 +1,92 @@
-import { Role } from "@/src/types";
+import { createClient } from "@/src/lib/supabase/client";
 
-// Mock session — replace with real Supabase/NextAuth session reads once the
-// backend exists. Everything downstream (middleware, Navbar) reads through
-// these two functions, so swapping the implementation later doesn't require
-// touching any component.
-export const SESSION_COOKIE = "eg_session";
+// Real Supabase Auth — replaces the mock eg_session cookie functions.
+// signUp/signIn/signOut all run client-side (they need to talk to
+// Supabase's auth endpoint directly); middleware.ts + server.ts handle
+// reading the resulting session server-side.
 
-export function setMockSession(role: Exclude<Role, "guest">) {
-  if (typeof document === "undefined") return;
-  document.cookie = `${SESSION_COOKIE}=${role}; path=/; max-age=${60 * 60 * 24 * 7}`;
+export type SignUpInput = {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+  sex: "male" | "female";
+  dateOfBirth?: string;
+  heightCm?: string;
+  weightKg?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  healthNotes?: string;
+  registrationType: "new" | "training" | "returning";
+  previousBelt?: string;
+  yearJoined?: string;
+  gapReason?: string;
+};
+
+export async function signUp(input: SignUpInput) {
+  const supabase = createClient();
+
+  // Everything under `data` lands in auth.users.raw_user_meta_data, which
+  // the on_auth_user_created trigger reads to populate public.users.
+  const { data, error } = await supabase.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      data: {
+        name: input.name,
+        phone: input.phone,
+        sex: input.sex,
+        dateOfBirth: input.dateOfBirth,
+        heightCm: input.heightCm,
+        weightKg: input.weightKg,
+        emergencyContactName: input.emergencyContactName,
+        emergencyContactPhone: input.emergencyContactPhone,
+        healthNotes: input.healthNotes,
+        registrationType: input.registrationType,
+        previousBelt: input.previousBelt,
+        yearJoined: input.yearJoined,
+        gapReason: input.gapReason,
+      },
+    },
+  });
+
+  if (error) throw error;
+  return data;
 }
 
-export function clearMockSession() {
-  if (typeof document === "undefined") return;
-  document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0`;
+export async function signIn(email: string, password: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) throw error;
+  return data;
 }
 
-export function getMockSessionRole(): Role {
-  if (typeof document === "undefined") return "guest";
-  const match = document.cookie.match(new RegExp(`(?:^|; )${SESSION_COOKIE}=([^;]*)`));
-  const value = match ? decodeURIComponent(match[1]) : "";
-  return value === "admin" || value === "member" ? value : "guest";
+export async function signOut() {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+// Client-side role read — for components like Navbar that run in the
+// browser and just need "guest / member / admin" to decide what to show.
+// Relies on the "Users can read their own row" RLS policy.
+export async function getCurrentSessionRole(): Promise<"guest" | "member" | "admin"> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return "guest";
+
+  const { data } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  return (data?.role as "guest" | "member" | "admin") ?? "guest";
 }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { BELTS } from '@/src/data/belts';
+import { signUp } from '@/src/lib/auth';
 
 const BELT_OPTIONS = BELTS.map((b) => b.name);
 
@@ -16,6 +17,8 @@ export default function Register() {
   const [logoError, setLogoError] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+  const [submitError, setSubmitError] = useState('');
 
   const [form, setForm] = useState({
     fullName: '',
@@ -42,17 +45,45 @@ export default function Register() {
 
   const passwordValid = form.password.length >= 8;
   const passwordsMatch = form.confirmPassword.length > 0 && form.password === form.confirmPassword;
-  const canSubmit = agreed && passwordValid && passwordsMatch;
+  const canSubmit = agreed && passwordValid && passwordsMatch && submitStatus !== 'submitting';
 
-  const handleSubmit = (e: React.MouseEvent) => {
+  const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    // Phase 6 — Supabase + NextAuth logic goes here
-    // NOTE: healthNotes is sensitive information — once a real backend exists,
-    // this should NOT be visible in general member lists/admin views the same
-    // way name/phone/email are. Scope read access to instructors/admins only
-    // (e.g. via Supabase RLS), not exposed broadly.
-    setSubmitted(true);
+
+    setSubmitStatus('submitting');
+    setSubmitError('');
+
+    // healthNotes is sensitive information — it's stored in public.users
+    // with RLS scoped to the user's own row + admin/instructor server
+    // routes only, never exposed in general member lists.
+    try {
+      if (!form.sex) throw new Error('Please select your sex.');
+      await signUp({
+        email: form.email,
+        password: form.password,
+        name: form.fullName,
+        phone: form.phone,
+        sex: form.sex,
+        dateOfBirth: form.dateOfBirth,
+        heightCm: form.heightCm,
+        weightKg: form.weightKg,
+        emergencyContactName: form.emergencyName,
+        emergencyContactPhone: form.emergencyPhone,
+        healthNotes: form.healthNotes,
+        registrationType: form.registrationType,
+        previousBelt: form.previousBelt,
+        yearJoined: form.yearJoined,
+        gapReason: form.gapReason,
+      });
+      setSubmitStatus('idle');
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitStatus('error');
+      setSubmitError(
+        err instanceof Error ? err.message : 'Registration failed. Please try again.'
+      );
+    }
   };
 
   return (
@@ -735,6 +766,11 @@ export default function Register() {
                   )}
                 </div>
 
+                {/* Registration error */}
+                {submitStatus === 'error' && submitError && (
+                  <p style={{ fontSize: 12, color: '#EF4444', margin: 0 }}>{submitError}</p>
+                )}
+
                 {/* Terms checkbox */}
                 <div
                   style={{
@@ -773,7 +809,7 @@ export default function Register() {
                     onClick={handleSubmit}
                     disabled={!canSubmit}
                   >
-                    Create Account
+                    {submitStatus === 'submitting' ? 'Creating Account…' : 'Create Account'}
                   </button>
                 </div>
 

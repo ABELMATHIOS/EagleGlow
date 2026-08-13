@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import Image from "next/image";
-import { getMockSessionRole, clearMockSession } from "@/src/lib/auth";
+import { getCurrentSessionRole, signOut } from "@/src/lib/auth";
 
 const navLinks = [
   { label: "Home",       href: "/" },
@@ -30,19 +30,21 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Mock session read — re-checks on every route change so Navbar updates
-  // right after a login redirect or logout, without needing a real
-  // client-side auth context.
+  // Real session read — re-checks on every route change so Navbar updates
+  // right after a login redirect or logout.
   useEffect(() => {
-    const sessionRole = getMockSessionRole();
-    setRole(sessionRole === "guest" ? "guest" : sessionRole);
+    let cancelled = false;
+    getCurrentSessionRole().then((sessionRole) => {
+      if (!cancelled) setRole(sessionRole);
+    });
+    return () => { cancelled = true; };
   }, [pathname]);
 
   const isLoggedIn = role === "member" || role === "admin";
   const accountHref = role === "admin" ? "/admin" : "/dashboard";
 
-  const handleLogout = () => {
-    clearMockSession();
+  const handleLogout = async () => {
+    await signOut();
     setRole("guest");
     setIsOpen(false);
     window.location.href = "/";

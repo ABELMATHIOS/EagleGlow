@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { setMockSession } from '@/src/lib/auth';
+import { signIn } from '@/src/lib/auth';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -22,23 +22,22 @@ export default function Login() {
   const emailValid = EMAIL_RE.test(email);
   const canSubmit = emailValid && password.length > 0 && status !== 'submitting';
 
-  const handleSubmit = (e: React.MouseEvent) => {
+  const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setStatus('submitting');
     setErrorMessage('');
-    // Phase 6 — Supabase + NextAuth logic goes here. Once wired up, replace
-    // this timeout with the real sign-in call and setStatus('error') with
-    // the real message on failure instead of always succeeding.
-    setTimeout(() => {
-      // Mock sign-in: replace with the real Supabase/NextAuth call. There's
-      // no real role check yet, so this heuristic (email containing
-      // "admin") just lets you exercise both the member and admin paths —
-      // it's not a real permission check.
-      setMockSession(email.toLowerCase().includes('admin') ? 'admin' : 'member');
+
+    try {
+      await signIn(email, password);
       setStatus('idle');
       router.push(searchParams.get('redirectTo') || '/dashboard');
-    }, 800);
+    } catch (err) {
+      setStatus('error');
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Sign in failed. Please try again.'
+      );
+    }
   };
 
   return (

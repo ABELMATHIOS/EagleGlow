@@ -2,17 +2,17 @@
 
 import Link from 'next/link';
 import { Status } from '@/src/types';
-import { BELTS, getBeltById } from '@/src/data/belts';
-import { CURRENT_USER } from '@/src/data/members';
+import { BELTS } from '@/src/data/belts';
 
-// Mock member data — replace with real Supabase data later. Pulled from the
-// same shared CURRENT_USER record Profile.tsx uses, so belt/status/join
-// date can't drift out of sync between the two pages.
-const MEMBER = {
-  name: CURRENT_USER.name.split(' ')[0],
-  beltOrder: getBeltById(CURRENT_USER.beltId ?? 'belt-1')!.order,
-  status: CURRENT_USER.status,
-  joinDate: new Date(CURRENT_USER.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+// Real user data now comes in as a prop from app/dashboard/page.tsx (a
+// Server Component that fetches it via getCurrentUser()). This component
+// stays a client component for styling/interactivity, but no longer
+// imports mock data itself.
+type DashboardUser = {
+  name: string;
+  beltId?: string;
+  status: Status;
+  createdAt: string;
 };
 
 // Covers the full Status enum, not just pending/active, so a member in any
@@ -51,8 +51,13 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function Dashboard() {
-  const currentBelt = BELTS.find((b) => b.order === MEMBER.beltOrder)!;
+export default function Dashboard({ user }: { user: DashboardUser }) {
+  const firstName = user.name.split(' ')[0];
+  const currentBelt = BELTS.find((b) => b.id === user.beltId) ?? BELTS[0];
+  const joinDate = new Date(user.createdAt).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
     <>
@@ -105,7 +110,7 @@ export default function Dashboard() {
               fontSize: 'clamp(1.8rem, 4vw, 2.8rem)',
               color: 'rgba(255,255,255,0.95)', margin: 0,
             }}>
-              Welcome back, <span style={{ color: '#C9A84C' }}>{MEMBER.name}</span>
+              Welcome back, <span style={{ color: '#C9A84C' }}>{firstName}</span>
             </h1>
           </div>
 
@@ -127,11 +132,11 @@ export default function Dashboard() {
             <div className="stat-card">
               <div style={{
                 width: 10, height: 10, borderRadius: '50%',
-                background: STATUS_COLOR[MEMBER.status], margin: '0 auto 12px',
-                boxShadow: `0 0 12px ${STATUS_COLOR[MEMBER.status]}88`,
+                background: STATUS_COLOR[user.status], margin: '0 auto 12px',
+                boxShadow: `0 0 12px ${STATUS_COLOR[user.status]}88`,
               }} />
               <p style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, fontSize: 18, color: '#fff', margin: '0 0 4px' }}>
-                {STATUS_LABEL[MEMBER.status]}
+                {STATUS_LABEL[user.status]}
               </p>
               <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
                 Membership Status
@@ -139,7 +144,7 @@ export default function Dashboard() {
             </div>
             <div className="stat-card">
               <p style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, fontSize: 18, color: '#fff', margin: '0 0 4px' }}>
-                {MEMBER.joinDate}
+                {joinDate}
               </p>
               <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
                 Member Since
