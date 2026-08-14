@@ -2,12 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { getPublishedAlbums } from '@/src/data/gallery';
-
-// Derived from the single shared gallery list (src/data/gallery.ts) —
-// only published albums are shown here; this used to be a second
-// hardcoded array disconnected from the admin panel's list.
-const ALBUMS = getPublishedAlbums();
+import type { GalleryAlbum } from '@/src/types';
 
 const TABS = ['All', 'Graduation', 'Competition', 'Training'];
 
@@ -202,7 +197,7 @@ function AlbumCard({
   onPlayVideo,
   onOpenPhoto,
 }: {
-  album: typeof ALBUMS[0];
+  album: GalleryAlbum;
   onPlayVideo: (id: string, title: string) => void;
   onOpenPhoto: (photos: string[], index: number) => void;
 }) {
@@ -342,7 +337,6 @@ function AlbumCard({
                 style={{ objectFit: 'cover' }}
                 onError={() => {}}
               />
-              {/* Placeholder bg */}
               <div style={{
                 position: 'absolute', inset: 0, zIndex: -1,
                 background: 'linear-gradient(135deg, #1a1a1a, #111)',
@@ -447,7 +441,11 @@ function AlbumCard({
 }
 
 // ── Main Component ────────────────────────────────────────────
-export default function GalleryGrid() {
+type GalleryGridProps = {
+  albums: GalleryAlbum[];
+};
+
+export default function GalleryGrid({ albums: ALBUMS }: GalleryGridProps) {
   const [activeTab,    setActiveTab]    = useState('All');
   const [videoModal,   setVideoModal]   = useState<{ id: string; title: string } | null>(null);
   const [lightbox,     setLightbox]     = useState<{ photos: string[]; index: number } | null>(null);

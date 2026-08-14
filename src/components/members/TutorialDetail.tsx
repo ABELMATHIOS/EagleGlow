@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { TUTORIALS as SHARED_TUTORIALS, isTutorialCompleted } from '@/src/data/tutorials';
+import type { Tutorial as DbTutorial } from '@/src/types';
 import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
 
 /* ============================================================
@@ -111,33 +111,12 @@ const GRADING_REQUIREMENTS: Record<BeltId, { category: string; minPercent?: numb
   ],
 };
 
-// Derived from the single shared tutorial list (src/data/tutorials.ts) and
-// CURRENT_USER_PROGRESS — edit tutorials in that file, not here.
-const TUTORIALS: Tutorial[] = SHARED_TUTORIALS.map((t) => {
-  const beltSlug = getBeltById(t.beltId)!.slug as BeltId;
-  const videoId = t.videoUrl ? t.videoUrl.split('v=')[1] : undefined;
-  return {
-    id: t.id,
-    belt: beltSlug,
-    title: t.title,
-    durationMinutes: t.durationMinutes,
-    description: t.description,
-    completed: isTutorialCompleted(t.id),
-    category: t.category as Category,
-    videoId,
-  };
-});
-
 function formatDuration(minutes?: number): string {
   return minutes != null ? `${minutes} min` : '';
 }
 
 /* ============================================================
    ICONS
-   One consistent stroke-icon family per category, replacing the
-   old 1–9 numbering (which implied an order that doesn't exist —
-   category matters here, sequence doesn't). All use currentColor
-   so they inherit whatever color the parent sets.
    ============================================================ */
 
 function CategoryIcon({ category, size = 16 }: { category: Category; size?: number }) {
@@ -146,23 +125,21 @@ function CategoryIcon({ category, size = 16 }: { category: Category; size?: numb
     stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   };
   switch (category) {
-    case 'taolu': // staff / weapon silhouette
+    case 'taolu':
       return <svg {...common}><path d="M10 2 L10 18 M6 5 L14 5" /></svg>;
-    case 'kicks': // kick arc
+    case 'kicks':
       return <svg {...common}><path d="M4 16 Q10 2 16 9" /><circle cx="16" cy="9" r="1.4" fill="currentColor" stroke="none" /></svg>;
-    case 'sanda': // crossed strike
+    case 'sanda':
       return <svg {...common}><path d="M5 5 L15 15 M15 5 L5 15" /></svg>;
-    case 'gymnastics': // roll arc
+    case 'gymnastics':
       return <svg {...common}><path d="M4 12 A8 8 0 1 1 12 4" /></svg>;
-    case 'flexibility': // stretch curve
+    case 'flexibility':
       return <svg {...common}><path d="M4 16 C4 10 16 10 16 4" /></svg>;
-    default: // asterisk fallback
+    default:
       return <svg {...common}><path d="M10 4 L10 16 M4.5 7 L15.5 13 M15.5 7 L4.5 13" /></svg>;
   }
 }
 
-// Signature mark: a seal/knot stamp, used sparingly (belt header + requirements
-// panel) as the one distinctive visual element this page is built around.
 function BeltSeal({ size = 40, color }: { size?: number; color: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
@@ -174,9 +151,6 @@ function BeltSeal({ size = 40, color }: { size?: number; color: string }) {
 
 /* ============================================================
    SUBCOMPONENTS
-   Split out for readability — extract to their own files
-   (RequirementsPanel.tsx, FilterChips.tsx, TutorialRow.tsx)
-   whenever this lands in a real component folder.
    ============================================================ */
 
 function RequirementsPanel({
@@ -184,9 +158,6 @@ function RequirementsPanel({
 }: {
   beltName: string;
   beltColor: string;
-  // minPercent and display are BOTH optional: a row has one or the other.
-  // Discipline-style rows (instructor-assessed, no video/score) carry only
-  // `display`; scored categories carry only `minPercent`.
   requirements: { category: string; minPercent?: number; display?: string }[];
 }) {
   if (requirements.length === 0) return null;
@@ -357,10 +328,34 @@ function TutorialRow({
    MAIN COMPONENT
    ============================================================ */
 
-export default function TutorialDetail({ belt }: { belt: string }) {
+type TutorialDetailProps = {
+  belt: string;
+  tutorials: DbTutorial[]; // real Supabase published tutorials, fetched via getPublishedTutorials()
+};
+
+export default function TutorialDetail({ belt, tutorials: dbTutorials }: TutorialDetailProps) {
   const beltId = (belt in BELTS ? belt : null) as BeltId | null;
   const beltMeta = beltId ? BELTS[beltId] : { name: 'Unknown', color: '#C9A84C' };
-  const tutorials = beltId ? TUTORIALS.filter((t) => t.belt === beltId) : [];
+
+  // Map real Supabase tutorials into this component's display shape.
+  // Completion tracking has no real backend yet, so every tutorial is
+  // stubbed as not completed until a tutorial_progress table exists.
+  const TUTORIALS: Tutorial[] = dbTutorials.map((t) => {
+    const beltSlug = getBeltById(t.beltId)?.slug as BeltId | undefined;
+    const videoId = t.videoUrl ? t.videoUrl.split('v=')[1] : undefined;
+    return {
+      id: t.id,
+      belt: (beltSlug ?? 'white') as BeltId,
+      title: t.title,
+      durationMinutes: t.durationMinutes,
+      description: t.description,
+      completed: false,
+      category: t.category as Category,
+      videoId,
+    };
+  });
+
+  const tutorialsForBelt = beltId ? TUTORIALS.filter((t) => t.belt === beltId) : [];
   const requirements = beltId ? GRADING_REQUIREMENTS[beltId] : [];
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -371,11 +366,11 @@ export default function TutorialDetail({ belt }: { belt: string }) {
   // category will just show an empty list when that chip is selected.
   const presentCategories = Object.keys(CATEGORY_LABEL) as Category[];
 
-  const overallCompleted = tutorials.filter((t) => t.completed).length;
+  const overallCompleted = tutorialsForBelt.filter((t) => t.completed).length;
 
   const visibleTutorials = activeCategory === 'all'
-    ? tutorials
-    : tutorials.filter((t) => t.category === activeCategory);
+    ? tutorialsForBelt
+    : tutorialsForBelt.filter((t) => t.category === activeCategory);
 
   return (
     <>
@@ -512,9 +507,6 @@ export default function TutorialDetail({ belt }: { belt: string }) {
           color: #fff;
         }
 
-        /* Requirements panel — deliberately distinct from plain cards:
-           certificate-style corner brackets + a seal mark, since this is
-           the single most consequential content on the page. */
         .req-panel {
           position: relative;
           background: linear-gradient(180deg, rgba(201,168,76,0.05), rgba(17,17,17,0.4));
@@ -592,7 +584,7 @@ export default function TutorialDetail({ belt }: { belt: string }) {
             </div>
 
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-              {overallCompleted}/{tutorials.length} tutorials watched
+              {overallCompleted}/{tutorialsForBelt.length} tutorials watched
             </span>
           </div>
 
@@ -619,7 +611,7 @@ export default function TutorialDetail({ belt }: { belt: string }) {
             ))}
           </div>
 
-          {visibleTutorials.length === 0 && tutorials.length > 0 && (
+          {visibleTutorials.length === 0 && tutorialsForBelt.length > 0 && (
             <div style={{
               textAlign: 'center', padding: '40px 24px',
               background: '#111111', border: '1px solid rgba(255,255,255,0.06)',
@@ -631,7 +623,7 @@ export default function TutorialDetail({ belt }: { belt: string }) {
             </div>
           )}
 
-          {tutorials.length === 0 && (
+          {tutorialsForBelt.length === 0 && (
             <div style={{
               textAlign: 'center', padding: '60px 24px',
               background: '#111111', border: '1px solid rgba(255,255,255,0.06)',

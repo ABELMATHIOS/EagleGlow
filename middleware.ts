@@ -47,9 +47,13 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Member routes (dashboard/profile): status must be active, unless
-    // they're an admin (admins bypass the approval gate entirely).
-    const isApproved = profile?.status === "active" || profile?.role === "admin";
+    // Member routes (dashboard/profile): status must be active, graduated,
+    // or serving — all three mean the member is in good standing and has
+    // full access. Only pending/paused/withdrawn get gated to /auth/pending.
+    // Admins bypass the approval gate entirely.
+    const APPROVED_STATUSES = ["active", "graduated", "serving"];
+    const isApproved =
+      APPROVED_STATUSES.includes(profile?.status ?? "") || profile?.role === "admin";
     if (!needsAdmin && !isApproved) {
       const url = request.nextUrl.clone();
       url.pathname = "/auth/pending";

@@ -1,36 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Status } from '@/src/types';
-import { MOCK_MEMBERS } from '@/src/data/members';
-import { BELTS, getBeltById } from '@/src/data/belts';
+import { Status, User, Belt } from '@/src/types';
 
-// Derived from the same shared member list AdminMembers.tsx uses, instead of
-// a separate hand-typed snapshot that had to be kept in sync by hand.
-const totalMembers = MOCK_MEMBERS.length;
-const pendingCount = MOCK_MEMBERS.filter((m) => m.status === 'pending').length;
-const activeCount = MOCK_MEMBERS.filter((m) => m.status === 'active').length;
-
-const STATS = [
-  { label: 'Total Members',    value: String(totalMembers), delta: `${totalMembers} on record`, color: '#C9A84C' },
-  { label: 'Pending Approval', value: String(pendingCount),  delta: pendingCount > 0 ? 'Needs action' : 'All caught up', color: '#E74C3C' },
-  { label: 'Active Members',   value: String(activeCount),   delta: `${Math.round((activeCount / totalMembers) * 100)}% of total`, color: '#2ECC71' },
-  // Belt-promotion history isn't modeled yet (would come from
-  // MembershipHistory once that table exists) — left as a static placeholder.
-  { label: 'Belt Promotions',  value: '—', delta: 'Not tracked yet', color: '#3498DB' },
-];
-
-const RECENT_MEMBERS = [...MOCK_MEMBERS]
-  .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-  .slice(0, 5)
-  .map((m) => ({
-    name: m.name,
-    belt: getBeltById(m.beltId ?? 'belt-1')!.name,
-    status: m.status,
-    joined: m.createdAt,
-  }));
-
-const BELT_COLORS: Record<string, string> = Object.fromEntries(BELTS.map((b) => [b.name, b.color]));
+type AdminOverviewProps = {
+  members: User[];
+  belts: Belt[]; // real Supabase belts, sorted by order ascending
+};
 
 // Covers the full Status enum, not just pending/active, so any real status
 // still gets a color instead of falling through to `undefined`.
@@ -43,7 +19,43 @@ const STATUS_COLORS: Record<Status, string> = {
   withdrawn: 'rgba(255,255,255,0.4)',
 };
 
-export default function AdminOverview() {
+export default function AdminOverview({ members, belts }: AdminOverviewProps) {
+  // Derived from the real member/belt lists passed in from app/admin/page.tsx
+  // (a Server Component fetching via getAllMembers() + getBelts()). Replaces
+  // the old MOCK_MEMBERS / BELTS mock imports — same shape, real source.
+  const beltById = new Map(belts.map((b) => [b.id, b]));
+  const BELT_COLORS: Record<string, string> = Object.fromEntries(belts.map((b) => [b.name, b.color]));
+
+  const totalMembers = members.length;
+  const pendingCount = members.filter((m) => m.status === 'pending').length;
+  const activeCount = members.filter((m) => m.status === 'active').length;
+
+  const STATS = [
+    { label: 'Total Members',    value: String(totalMembers), delta: `${totalMembers} on record`, color: '#C9A84C' },
+    { label: 'Pending Approval', value: String(pendingCount),  delta: pendingCount > 0 ? 'Needs action' : 'All caught up', color: '#E74C3C' },
+    { label: 'Active Members',   value: String(activeCount),   delta: totalMembers > 0 ? `${Math.round((activeCount / totalMembers) * 100)}% of total` : '0% of total', color: '#2ECC71' },
+    // Belt-promotion history isn't modeled yet (would come from
+    // MembershipHistory once that table exists) — left as a static placeholder.
+    { label: 'Belt Promotions',  value: '—', delta: 'Not tracked yet', color: '#3498DB' },
+  ];
+
+  const RECENT_MEMBERS = [...members]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, 5)
+    .map((m) => ({
+      name: m.name,
+      belt: (m.beltId && beltById.get(m.beltId)?.name) || belts[0]?.name || 'White',
+      status: m.status,
+      joined: m.createdAt,
+    }));
+
+  // Real belt distribution — count of members per belt, ordered same as belts.
+  const beltCounts = belts.map((b) => ({
+    belt: b.name,
+    count: members.filter((m) => (m.beltId ? m.beltId === b.id : b === belts[0])).length,
+  }));
+  const maxBeltCount = Math.max(1, ...beltCounts.map((b) => b.count)); // avoid divide-by-zero
+
   return (
     <>
       <style>{`
@@ -203,7 +215,13 @@ export default function AdminOverview() {
                 </tr>
               </thead>
               <tbody>
-                {RECENT_MEMBERS.map((m) => (
+                {RECENT_MEMBERS.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
+                      No members yet
+                    </td>
+                  </tr>
+                ) : RECENT_MEMBERS.map((m) => (
                   <tr key={m.name}>
                     <td style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
                       {m.name}
@@ -253,7 +271,7 @@ export default function AdminOverview() {
           </h2>
 
           {[
-            { label: 'Review Pending Members', href: '/admin/members?filter=pending', badge: '5', color: '#E74C3C' },
+            { label: 'Review Pending Members', href: '/admin/members?filter=pending', badge: pendingCount > 0 ? String(pendingCount) : null, color: '#E74C3C' },
             { label: 'Promote a Belt',         href: '/admin/members',                badge: null, color: '#C9A84C' },
             { label: 'Add Tutorial Video',     href: '/admin/tutorials',              badge: null, color: '#C9A84C' },
             { label: 'Update Class Schedule',  href: '/admin/classes',                badge: null, color: '#C9A84C' },
@@ -293,15 +311,7 @@ export default function AdminOverview() {
             }}>
               Belt Distribution
             </p>
-            {[
-              { belt: 'White',  count: 18 },
-              { belt: 'Yellow', count: 12 },
-              { belt: 'Green',  count: 8  },
-              { belt: 'Blue',   count: 5  },
-              { belt: 'Red',    count: 3  },
-              { belt: 'Brown',  count: 2  },
-              { belt: 'Black',  count: 1  },
-            ].map((b) => (
+            {beltCounts.map((b) => (
               <div key={b.belt} style={{
                 display: 'flex', alignItems: 'center',
                 gap: 10, marginBottom: 8,
@@ -324,7 +334,7 @@ export default function AdminOverview() {
                   <div style={{
                     height: '100%', borderRadius: 2,
                     background: BELT_COLORS[b.belt],
-                    width: `${(b.count / 18) * 100}%`,
+                    width: `${(b.count / maxBeltCount) * 100}%`,
                     opacity: b.belt === 'White' ? 0.4 : 0.8,
                   }} />
                 </div>

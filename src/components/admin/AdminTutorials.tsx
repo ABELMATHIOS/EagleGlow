@@ -1,12 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Tutorial, TutorialCategory } from '@/src/types';
-import { TUTORIALS as SHARED_TUTORIALS } from '@/src/data/tutorials';
-import { BELTS as SHARED_BELTS, getBeltById, getBeltBySlug } from '@/src/data/belts';
+import { Tutorial, TutorialCategory, Belt } from '@/src/types';
+import { createTutorial, updateTutorial, deleteTutorial as deleteTutorialAction } from '@/src/lib/admin-action';
 
-const BELT_NAMES = SHARED_BELTS.map((b) => b.name);
-const BELT_COLORS: Record<string, string> = Object.fromEntries(SHARED_BELTS.map((b) => [b.name, b.color]));
 const CATEGORIES: TutorialCategory[] = ['general', 'taolu', 'kicks', 'sanda', 'gymnastics', 'flexibility'];
 
 function formatDuration(minutes?: number): string {
@@ -23,12 +20,8 @@ function youtubeIdFromUrl(url: string): string | undefined {
   return match ? match[1] : trimmed; // allow pasting a bare video ID too
 }
 
-function makeId(beltSlug: string) {
-  return `${beltSlug}-${Date.now().toString(36).slice(-5)}`;
-}
-
 type Draft = {
-  beltName: string;
+  beltId: string;
   title: string;
   category: TutorialCategory;
   durationMinutes: string;
@@ -37,29 +30,39 @@ type Draft = {
   published: boolean;
 };
 
-const EMPTY_DRAFT: Draft = {
-  beltName: BELT_NAMES[0],
-  title: '',
-  category: 'general',
-  durationMinutes: '',
-  videoUrl: '',
-  description: '',
-  published: true,
+type AdminTutorialsProps = {
+  initialTutorials: Tutorial[]; // real Supabase tutorials, fetched via getAllTutorials()
+  belts: Belt[]; // real Supabase belts, already sorted by `order` ascending
 };
 
-export default function AdminTutorials() {
-  // Mock data — seeded from the shared tutorial list (src/data/tutorials.ts).
-  // Held in local state so Add/Edit/Delete actually work; edits only persist
-  // for this session until wired to a real backend.
-  const [tutorials, setTutorials] = useState<Tutorial[]>(SHARED_TUTORIALS);
-  const [filterBelt, setFilterBelt] = useState('all');
-  const [selected, setSelected] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+export default function AdminTutorials({ initialTutorials, belts }: AdminTutorialsProps) {
+  const beltById = new Map(belts.map((b) => [b.id, b]));
+  const BELT_COLORS: Record<string, string> = Object.fromEntries(belts.map((b) => [b.name, b.color]));
+
+  const EMPTY_DRAFT: Draft = {
+    beltId: belts[0]?.id ?? '',
+    title: '',
+    category: 'general',
+    durationMinutes: '',
+    videoUrl: '',
+    description: '',
+    published: true,
+  };
+
+  const [tutorials,     setTutorials]     = useState<Tutorial[]>(initialTutorials);
+  const [filterBelt,    setFilterBelt]    = useState('all');
+  const [selected,      setSelected]      = useState<string | null>(null);
+  const [adding,        setAdding]        = useState(false);
+  const [draft,         setDraft]         = useState<Draft>(EMPTY_DRAFT);
+
+  const [saving,        setSaving]        = useState(false);
+  const [saveError,     setSaveError]     = useState<string | null>(null);
+  const [deletingId,    setDeletingId]    = useState<string | null>(null);
+  const [togglingId,    setTogglingId]    = useState<string | null>(null);
 
   const rows = tutorials.map((t) => ({
     id: t.id,
-    belt: getBeltById(t.beltId)!.name,
+    belt: beltById.get(t.beltId)?.name ?? 'Unknown',
     title: t.title,
     duration: formatDuration(t.durationMinutes),
     published: t.published,
@@ -72,6 +75,7 @@ export default function AdminTutorials() {
   const startAdd = () => {
     setDraft(EMPTY_DRAFT);
     setSelected(null);
+    setSaveError(null);
     setAdding(true);
   };
 
@@ -79,7 +83,7 @@ export default function AdminTutorials() {
     const t = tutorials.find((tt) => tt.id === id);
     if (!t) return;
     setDraft({
-      beltName: getBeltById(t.beltId)!.name,
+      beltId: t.beltId,
       title: t.title,
       category: t.category,
       durationMinutes: t.durationMinutes != null ? String(t.durationMinutes) : '',
@@ -88,6 +92,7 @@ export default function AdminTutorials() {
       published: t.published,
     });
     setSelected(id);
+    setSaveError(null);
     setAdding(false);
   };
 
@@ -96,49 +101,70 @@ export default function AdminTutorials() {
     setSelected(null);
   };
 
-  const draftValid = draft.title.trim().length > 0;
+  const draftValid = draft.title.trim().length > 0 && Boolean(draft.beltId);
 
-  const saveDraft = () => {
+  async function saveDraft() {
     if (!draftValid) return;
-    const belt = SHARED_BELTS.find((b) => b.name === draft.beltName)!;
-    const videoId = youtubeIdFromUrl(draft.videoUrl);
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const videoId = youtubeIdFromUrl(draft.videoUrl);
 
-    const patch: Partial<Tutorial> = {
-      title: draft.title.trim(),
-      beltId: belt.id,
-      category: draft.category,
-      durationMinutes: draft.durationMinutes ? Number(draft.durationMinutes) : undefined,
-      videoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : undefined,
-      description: draft.description.trim() || undefined,
-      published: draft.published,
-    };
+      const payload = {
+        beltId: draft.beltId,
+        title: draft.title.trim(),
+        category: draft.category,
+        durationMinutes: draft.durationMinutes ? Number(draft.durationMinutes) : null,
+        videoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
+        description: draft.description.trim() || null,
+        published: draft.published,
+      };
 
-    if (selected) {
-      setTutorials((prev) => prev.map((t) => (t.id === selected ? { ...t, ...patch } : t)));
-    } else {
-      const siblingCount = tutorials.filter((t) => t.beltId === belt.id).length;
-      setTutorials((prev) => [
-        ...prev,
-        {
-          id: makeId(belt.slug),
-          order: siblingCount + 1,
-          createdAt: new Date().toISOString().slice(0, 10),
-          ...patch,
-        } as Tutorial,
-      ]);
+      if (selected) {
+        const { tutorial } = await updateTutorial(selected, payload);
+        setTutorials((prev) => prev.map((t) => (t.id === selected ? toTutorial(tutorial) : t)));
+      } else {
+        const siblingCount = tutorials.filter((t) => t.beltId === draft.beltId).length;
+        const { tutorial } = await createTutorial({ ...payload, order: siblingCount + 1 });
+        setTutorials((prev) => [...prev, toTutorial(tutorial)]);
+      }
+
+      setAdding(false);
+      setSelected(null);
+      setDraft(EMPTY_DRAFT);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save tutorial');
+    } finally {
+      setSaving(false);
     }
-    setAdding(false);
-    setSelected(null);
-  };
+  }
 
-  const deleteTutorial = (id: string) => {
-    setTutorials((prev) => prev.filter((t) => t.id !== id));
-    if (selected === id) setSelected(null);
-  };
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      await deleteTutorialAction(id);
+      setTutorials((prev) => prev.filter((t) => t.id !== id));
+      if (selected === id) setSelected(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to delete tutorial');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
-  const togglePublished = (id: string) => {
-    setTutorials((prev) => prev.map((t) => (t.id === id ? { ...t, published: !t.published } : t)));
-  };
+  async function togglePublished(id: string) {
+    const t = tutorials.find((tt) => tt.id === id);
+    if (!t) return;
+    setTogglingId(id);
+    try {
+      const { tutorial } = await updateTutorial(id, { published: !t.published });
+      setTutorials((prev) => prev.map((tt) => (tt.id === id ? toTutorial(tutorial) : tt)));
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to update tutorial');
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   return (
     <>
@@ -223,7 +249,6 @@ export default function AdminTutorials() {
           width: 100%;
           box-sizing: border-box;
           cursor: pointer;
-          
         }
         .admin-select option {
           background: #111;
@@ -251,6 +276,7 @@ export default function AdminTutorials() {
           border-color: rgba(255,255,255,0.2);
           color: rgba(255,255,255,0.8);
         }
+        .admin-btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
         .admin-btn-danger {
           background: rgba(231,76,60,0.1);
           color: #E74C3C;
@@ -264,13 +290,15 @@ export default function AdminTutorials() {
           transition: all 0.18s;
         }
         .admin-btn-danger:hover { background: rgba(231,76,60,0.18); }
+        .admin-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
         .row-action-btn {
           background: transparent;
           border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 8px; padding: '4px 10px';
+          border-radius: 8px; padding: 4px 10px;
           font-size: 11px; color: rgba(255,255,255,0.5);
           cursor: pointer; font-family: 'Inter', sans-serif;
         }
+        .row-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .detail-panel {
           background: #111;
           border: 1px solid rgba(255,255,255,0.06);
@@ -293,6 +321,7 @@ export default function AdminTutorials() {
           font-family: 'Inter', sans-serif; font-size: 12.5px;
           color: rgba(255,255,255,0.6);
         }
+        .field-error { font-size: 11px; color: #E74C3C; margin: 4px 0 0; }
         @media (max-width: 1000px) {
           .tutorials-layout { grid-template-columns: 1fr; }
           .detail-panel { position: static; }
@@ -328,9 +357,11 @@ export default function AdminTutorials() {
           style={{ width: 'auto', minWidth: 160 }}
         >
           <option value="all">All Belts</option>
-          {BELT_NAMES.map((b) => <option key={b} value={b}>{b}</option>)}
+          {belts.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
         </select>
       </div>
+
+      {saveError && !showForm && <p className="field-error" style={{ marginBottom: 16 }}>{saveError}</p>}
 
       <div className="tutorials-layout">
         {/* Table */}
@@ -371,7 +402,8 @@ export default function AdminTutorials() {
                     <span
                       onClick={() => togglePublished(t.id)}
                       style={{
-                        cursor: 'pointer',
+                        cursor: togglingId === t.id ? 'default' : 'pointer',
+                        opacity: togglingId === t.id ? 0.5 : 1,
                         fontSize: 11, fontWeight: 600,
                         color: t.published ? '#2ECC71' : 'rgba(255,255,255,0.3)',
                         background: t.published ? '#2ECC7118' : 'rgba(255,255,255,0.04)',
@@ -380,7 +412,7 @@ export default function AdminTutorials() {
                       }}
                       title="Click to toggle"
                     >
-                      {t.published ? 'Published' : 'Draft'}
+                      {togglingId === t.id ? 'Saving...' : t.published ? 'Published' : 'Draft'}
                     </span>
                   </td>
                   <td>
@@ -389,9 +421,10 @@ export default function AdminTutorials() {
                       <button
                         className="row-action-btn"
                         style={{ borderColor: 'rgba(231,76,60,0.3)', color: '#E74C3C' }}
-                        onClick={() => deleteTutorial(t.id)}
+                        onClick={() => handleDelete(t.id)}
+                        disabled={deletingId === t.id}
                       >
-                        Delete
+                        {deletingId === t.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </div>
                   </td>
@@ -417,8 +450,8 @@ export default function AdminTutorials() {
 
               <div>
                 <label className="field-label">Belt</label>
-                <select className="admin-select" value={draft.beltName} onChange={(e) => setDraft((d) => ({ ...d, beltName: e.target.value }))}>
-                  {BELT_NAMES.map((b) => <option key={b} value={b}>{b} Belt</option>)}
+                <select className="admin-select" value={draft.beltId} onChange={(e) => setDraft((d) => ({ ...d, beltId: e.target.value }))}>
+                  {belts.map((b) => <option key={b.id} value={b.id}>{b.name} Belt</option>)}
                 </select>
               </div>
 
@@ -463,15 +496,22 @@ export default function AdminTutorials() {
               </label>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                <button className="admin-btn-gold" style={{ flex: 1 }} disabled={!draftValid} onClick={saveDraft}>
-                  {selected ? 'Save Changes' : 'Add Tutorial'}
+                <button className="admin-btn-gold" style={{ flex: 1 }} disabled={!draftValid || saving} onClick={saveDraft}>
+                  {saving ? 'Saving...' : selected ? 'Save Changes' : 'Add Tutorial'}
                 </button>
-                <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelForm}>Cancel</button>
+                <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelForm} disabled={saving}>Cancel</button>
               </div>
 
+              {saveError && <p className="field-error">{saveError}</p>}
+
               {selected && (
-                <button className="admin-btn-danger" style={{ width: '100%' }} onClick={() => deleteTutorial(selected)}>
-                  Delete Tutorial
+                <button
+                  className="admin-btn-danger"
+                  style={{ width: '100%' }}
+                  onClick={() => handleDelete(selected)}
+                  disabled={deletingId === selected}
+                >
+                  {deletingId === selected ? 'Deleting...' : 'Delete Tutorial'}
                 </button>
               )}
             </div>
@@ -480,4 +520,21 @@ export default function AdminTutorials() {
       </div>
     </>
   );
+}
+
+// Converts the API response's snake_case-adjacent shape (normalized by the
+// tutorials API routes) into the Tutorial type this component uses everywhere.
+function toTutorial(raw: any): Tutorial {
+  return {
+    id: raw.id,
+    beltId: raw.belt_id,
+    title: raw.title,
+    description: raw.description ?? undefined,
+    videoUrl: raw.video_url ?? undefined,
+    durationMinutes: raw.duration_minutes ?? undefined,
+    category: raw.category,
+    order: raw.sort_order,
+    published: raw.published ?? false,
+    createdAt: raw.created_at,
+  };
 }

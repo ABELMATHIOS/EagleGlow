@@ -4,15 +4,38 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { signOut } from '@/src/lib/auth';
+import type { User } from '@/src/types';
 
-export default function Pending() {
+type PendingProps = {
+  status: User['status'];
+};
+
+const CONTENT: Record<string, { icon: string; title: string; body: string }> = {
+  pending: {
+    icon: '⏳',
+    title: 'Account Pending Approval',
+    body: "Your account is still awaiting approval from Master Endale. You'll be able to access your dashboard once it's approved.",
+  },
+  paused: {
+    icon: '⛔',
+    title: 'Account Suspended',
+    body: 'Your account has been suspended. Please contact the admin to find out why and get your account reactivated.',
+  },
+  withdrawn: {
+    icon: '✕',
+    title: 'Registration Declined',
+    body: 'Your registration was not approved. Please contact the admin if you believe this was a mistake.',
+  },
+};
+
+export default function Pending({ status }: PendingProps) {
   const [logoError, setLogoError] = useState(false);
+  const { icon, title, body } = CONTENT[status] ?? CONTENT.pending;
 
   const handleSignOut = async () => {
     await signOut();
     window.location.href = '/';
   };
-
   return (
     <>
       <style>{`
@@ -79,22 +102,21 @@ export default function Pending() {
               }}>E</div>
             )}
           </div>
-
-          <div style={{
+<div style={{
             width: 64, height: 64, borderRadius: '50%',
             background: 'rgba(201,168,76,0.1)',
             border: '1px solid rgba(201,168,76,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 20px',
             fontSize: 28,
-          }}>⏳</div>
+          }}>{icon}</div>
 
           <h1 style={{
             fontFamily: 'Cinzel, serif', fontWeight: 700,
             fontSize: '1.3rem', color: 'rgba(255,255,255,0.95)',
             letterSpacing: '0.04em', marginBottom: 12,
           }}>
-            Account Pending Approval
+            {title}
           </h1>
 
           <p style={{
@@ -102,8 +124,7 @@ export default function Pending() {
             color: 'rgba(255,255,255,0.45)',
             fontSize: 13, lineHeight: 1.8, marginBottom: 28,
           }}>
-            Your account is still awaiting approval from Master Endale.
-            You&apos;ll be able to access your dashboard once it&apos;s approved.
+            {body}
           </p>
 
           <div style={{
