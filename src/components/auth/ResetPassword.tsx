@@ -1,33 +1,71 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { sendPasswordReset } from '@/src/lib/auth';
+import { createClient } from '@/src/lib/supabase/client';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export default function ForgotPassword() {
-  const [email, setEmail] = useState('');
+export default function ResetPassword() {
+  const router = useRouter();
   const [logoError, setLogoError] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'submitting' | 'sent'>('idle');
 
-  const emailValid = EMAIL_RE.test(email);
-  const canSubmit = emailValid && status !== 'submitting';
+  // The Supabase email link redirects here with a recovery token in the
+  // URL that the client SDK exchanges for a session automatically. Until
+  // that finishes, there's no session yet to call updateUser() against.
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'done'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    const supabase = createClient();
+    // PASSWORD_RECOVERY fires once the SDK has parsed the recovery link
+    // and established a session. Also check immediately in case it fired
+    // before this listener was attached.
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setSessionReady(true);
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setSessionReady(true);
+    });
+
+    const timeout = setTimeout(() => {
+      setSessionReady((ready) => {
+        if (!ready) setSessionError(true);
+        return ready;
+      });
+    }, 4000);
+
+    return () => {
+      listener.subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  const newPasswordValid = newPassword.length >= 8;
+  const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const canSubmit = sessionReady && newPasswordValid && passwordsMatch && status !== 'submitting';
 
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setStatus('submitting');
+    setErrorMessage('');
     try {
-      await sendPasswordReset(email);
-    } catch {
-      // Swallow the error deliberately — always show "check your email"
-      // regardless of outcome. Confirming or denying an account exists by
-      // email is an account-enumeration risk, and Supabase itself doesn't
-      // reveal that distinction for this call either.
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setStatus('done');
+      setTimeout(() => router.push('/dashboard'), 1800);
+    } catch (err) {
+      setStatus('idle');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to reset password. Please try again.');
     }
-    setStatus('sent');
   };
 
   return (
@@ -55,6 +93,9 @@ export default function ForgotPassword() {
         .login-input:focus {
           border-color: rgba(201,168,76,0.4);
           background: rgba(201,168,76,0.04);
+        }
+        .login-input.invalid {
+          border-color: rgba(239,68,68,0.5);
         }
 
         .login-btn {
@@ -167,7 +208,32 @@ export default function ForgotPassword() {
             )}
           </div>
 
-          {status === 'sent' ? (
+          {sessionError ? (
+            <>
+              {/* Expired / invalid link state */}
+              <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                <h1 style={{
+                  fontFamily: 'Cinzel, serif', fontWeight: 700,
+                  fontSize: '1.3rem', color: 'rgba(255,255,255,0.95)',
+                  letterSpacing: '0.04em', marginBottom: 10,
+                }}>
+                  LINK EXPIRED
+                </h1>
+                <p style={{
+                  fontFamily: 'Inter, sans-serif',
+                  color: 'rgba(255,255,255,0.4)',
+                  fontSize: '13px', lineHeight: 1.6,
+                }}>
+                  This password reset link is invalid or has expired. Request a new one to continue.
+                </p>
+                <div style={{ marginTop: 24 }}>
+                  <Link href="/auth/forgot-password" className="register-link">
+                    Request a new link →
+                  </Link>
+                </div>
+              </div>
+            </>
+          ) : status === 'done' ? (
             <>
               {/* Success state */}
               <div style={{ textAlign: 'center', marginBottom: 8 }}>
@@ -187,15 +253,14 @@ export default function ForgotPassword() {
                   fontSize: '1.3rem', color: 'rgba(255,255,255,0.95)',
                   letterSpacing: '0.04em', marginBottom: 10,
                 }}>
-                  CHECK YOUR EMAIL
+                  PASSWORD UPDATED
                 </h1>
                 <p style={{
                   fontFamily: 'Inter, sans-serif',
                   color: 'rgba(255,255,255,0.4)',
                   fontSize: '13px', lineHeight: 1.6,
                 }}>
-                  If an account exists for <strong style={{ color: 'rgba(255,255,255,0.6)' }}>{email}</strong>,
-                  we&apos;ve sent a link to reset your password. It may take a few minutes to arrive.
+                  Taking you to your dashboard…
                 </p>
               </div>
             </>
@@ -208,41 +273,65 @@ export default function ForgotPassword() {
                   fontSize: '1.5rem', color: 'rgba(255,255,255,0.95)',
                   letterSpacing: '0.06em', marginBottom: 8,
                 }}>
-                  RESET PASSWORD
+                  SET NEW PASSWORD
                 </h1>
                 <p style={{
                   fontFamily: 'Inter, sans-serif',
                   color: 'rgba(255,255,255,0.35)',
                   fontSize: '13px', lineHeight: 1.6,
                 }}>
-                  Enter the email on your account and we&apos;ll send you a link to reset your password.
+                  Choose a new password for your account.
                 </p>
               </div>
 
               {/* Form */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-                {/* Email */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <label style={{
                     fontFamily: 'Inter, sans-serif', fontSize: 11,
                     fontWeight: 600, color: 'rgba(255,255,255,0.4)',
                     letterSpacing: '0.12em', textTransform: 'uppercase',
-                  }}>Email</label>
+                  }}>New Password</label>
                   <input
-                    className="login-input"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
+                    className={`login-input${newPassword && !newPasswordValid ? ' invalid' : ''}`}
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    autoComplete="new-password"
                   />
+                  {newPassword && !newPasswordValid && (
+                    <p style={{ fontSize: 11, color: '#EF4444', margin: 0 }}>At least 8 characters.</p>
+                  )}
                 </div>
 
-                {/* Submit button */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <label style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: 11,
+                    fontWeight: 600, color: 'rgba(255,255,255,0.4)',
+                    letterSpacing: '0.12em', textTransform: 'uppercase',
+                  }}>Confirm New Password</label>
+                  <input
+                    className={`login-input${confirmPassword && !passwordsMatch ? ' invalid' : ''}`}
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  {confirmPassword && !passwordsMatch && (
+                    <p style={{ fontSize: 11, color: '#EF4444', margin: 0 }}>Passwords don&apos;t match.</p>
+                  )}
+                </div>
+
+                {errorMessage && (
+                  <p style={{ fontSize: 12, color: '#EF4444', margin: 0 }}>{errorMessage}</p>
+                )}
+
                 <div style={{ marginTop: 8 }}>
                   <button className="login-btn" onClick={handleSubmit} disabled={!canSubmit}>
-                    {status === 'submitting' ? 'Sending…' : 'Send Reset Link'}
+                    {status === 'submitting' ? 'Updating…' : !sessionReady ? 'Verifying link…' : 'Update Password'}
                   </button>
                 </div>
 
@@ -250,18 +339,19 @@ export default function ForgotPassword() {
             </>
           )}
 
-          {/* Back to login */}
-          <p style={{
-            textAlign: 'center',
-            fontFamily: 'Inter, sans-serif',
-            color: 'rgba(255,255,255,0.35)',
-            fontSize: '13px',
-            marginTop: 28,
-          }}>
-            <Link href="/auth/login" className="register-link">
-              ← Back to sign in
-            </Link>
-          </p>
+          {status !== 'done' && !sessionError && (
+            <p style={{
+              textAlign: 'center',
+              fontFamily: 'Inter, sans-serif',
+              color: 'rgba(255,255,255,0.35)',
+              fontSize: '13px',
+              marginTop: 28,
+            }}>
+              <Link href="/auth/login" className="register-link">
+                ← Back to sign in
+              </Link>
+            </p>
+          )}
 
         </div>
       </main>

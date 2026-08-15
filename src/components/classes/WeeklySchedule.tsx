@@ -1,8 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import SectionLabel from '@/src/components/classes/SectionLabel';
-import { CLASSES as SHARED_CLASSES, DAYS, formatDuration } from '@/src/data/classes';
+import type { ClassSchedule } from '@/src/types';
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function formatDuration(minutes: number): string {
+  return `${minutes} min`;
+}
 
 type ClassEntry = {
   time: string;
@@ -12,28 +18,31 @@ type ClassEntry = {
   level?: string;
 };
 
-// Grouped by day from the single shared classes list (src/data/classes.ts),
-// which also carries a stable `id` per class — this local view just keeps
-// the display-friendly `name`/`duration` (string) shape the table already
-// used.
-const SCHEDULE: Record<string, ClassEntry[]> = DAYS.reduce((acc, day) => {
-  acc[day] = SHARED_CLASSES
-    .filter((c) => c.day === day)
-    .map((c) => ({
-      time: c.time,
-      name: c.title,
-      type: c.type,
-      duration: formatDuration(c.durationMinutes),
-      level: c.level,
-    }));
-  return acc;
-}, {} as Record<string, ClassEntry[]>);
+type WeeklyScheduleProps = {
+  classes: ClassSchedule[]; // real Supabase classes, fetched via getClasses() in app/classes/page.tsx
+};
 
-export default function WeeklySchedule() {
+export default function WeeklySchedule({ classes }: WeeklyScheduleProps) {
   const [activeDay, setActiveDay] = useState('Monday');
   const [filter, setFilter] = useState<'all' | 'wushu' | 'fitness'>('all');
 
-  const filteredClasses = SCHEDULE[activeDay].filter(
+  // Grouped by day from the real classes list passed in as a prop — replaces
+  // the old src/data/classes.ts mock import so admin edits actually show up
+  // on the public schedule.
+  const SCHEDULE: Record<string, ClassEntry[]> = useMemo(() => DAYS.reduce((acc, day) => {
+    acc[day] = classes
+      .filter((c) => c.day === day)
+      .map((c) => ({
+        time: c.time,
+        name: c.title,
+        type: c.type,
+        duration: formatDuration(c.durationMinutes),
+        level: c.level,
+      }));
+    return acc;
+  }, {} as Record<string, ClassEntry[]>), [classes]);
+
+  const filteredClasses = (SCHEDULE[activeDay] ?? []).filter(
     c => filter === 'all' || c.type === filter
   );
 

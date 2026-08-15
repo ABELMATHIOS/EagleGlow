@@ -3,6 +3,7 @@
 import { useState, useRef, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BELTS, getBeltById } from "@/src/data/belts";
+import { createClient } from "@/src/lib/supabase/client";
 import type { CurrentUserProfile } from "@/src/lib/get-profile";
 
 type ProfileProps = {
@@ -111,6 +112,8 @@ export default function ProfilePage({ user }: ProfileProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const newPasswordValid = newPassword.length >= 8;
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
@@ -121,6 +124,7 @@ export default function ProfilePage({ user }: ProfileProps) {
     setNewPassword("");
     setConfirmPassword("");
     setPasswordSuccess(false);
+    setPasswordError(null);
     setChangingPassword(true);
   };
 
@@ -128,24 +132,48 @@ export default function ProfilePage({ user }: ProfileProps) {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setPasswordError(null);
     setChangingPassword(false);
   };
 
-  const submitPasswordChange = () => {
+  const submitPasswordChange = async () => {
     if (!passwordFormValid) return;
-    // NOTE: no backend exists yet — this only validates the new/confirm match and
-    // length client-side. Once wired up, this should call
-    // supabase.auth.updateUser({ password: newPassword }) after re-authenticating
-    // with currentPassword, and surface real server-side errors here instead of
-    // this always-succeeds mock.
-    setPasswordSuccess(true);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setTimeout(() => {
-      setChangingPassword(false);
-      setPasswordSuccess(false);
-    }, 1500);
+    setPasswordSaving(true);
+    setPasswordError(null);
+    try {
+      const supabase = createClient();
+
+      // Supabase has no standalone "verify this password" call, so we
+      // re-authenticate with the current password first — this confirms it's
+      // correct and refreshes the session before the actual change.
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: MEMBER.email,
+        password: currentPassword,
+      });
+      if (reauthError) {
+        throw new Error("Current password is incorrect.");
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      setPasswordSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setChangingPassword(false);
+        setPasswordSuccess(false);
+      }, 1500);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "Failed to update password.");
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   // ── Name correction request (separate from profile editing — Full Name stays
@@ -821,9 +849,12 @@ export default function ProfilePage({ user }: ProfileProps) {
                       {confirmPassword && !passwordsMatch && <p className="field-error">Passwords don't match.</p>}
                     </div>
                   </div>
-                  <div style={{ marginTop: "24px", display: "flex", gap: "12px" }}>
-                    <button className="save-btn" onClick={submitPasswordChange} disabled={!passwordFormValid}>UPDATE PASSWORD</button>
-                    <button className="edit-btn" onClick={cancelChangingPassword}>CANCEL</button>
+                  <div style={{ marginTop: "24px", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+                    <button className="save-btn" onClick={submitPasswordChange} disabled={!passwordFormValid || passwordSaving}>
+                      {passwordSaving ? "UPDATING…" : "UPDATE PASSWORD"}
+                    </button>
+                    <button className="edit-btn" onClick={cancelChangingPassword} disabled={passwordSaving}>CANCEL</button>
+                    {passwordError && <p className="field-error" style={{ margin: 0 }}>{passwordError}</p>}
                   </div>
                 </>
               )}

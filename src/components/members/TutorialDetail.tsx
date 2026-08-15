@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { Tutorial as DbTutorial } from '@/src/types';
 import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
 import { markTutorialComplete, markTutorialIncomplete } from '@/src/lib/tutorial-progress-client';
@@ -364,6 +365,17 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials, currentUs
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
+
+  // Supports deep-linking from the Dashboard's "Resume" card
+  // (/tutorials/[belt]?t=<tutorialId>) straight into the right video.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const requestedId = searchParams.get('t');
+    if (requestedId && tutorialsForBelt.some((t) => t.id === requestedId)) {
+      setActiveId(requestedId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const presentCategories = Object.keys(CATEGORY_LABEL) as Category[];
 

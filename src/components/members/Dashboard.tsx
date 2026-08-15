@@ -15,6 +15,12 @@ type DashboardUser = {
   createdAt: string;
 };
 
+type DashboardProgress = {
+  totalTutorials: number;
+  completedCount: number;
+  lastWatched: { tutorialId: string; title: string; beltSlug: string } | null;
+};
+
 // Covers the full Status enum, not just pending/active, so a member in any
 // other real status still renders correctly instead of hitting `undefined`.
 const STATUS_LABEL: Record<Status, string> = {
@@ -51,13 +57,16 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function Dashboard({ user }: { user: DashboardUser }) {
+export default function Dashboard({ user, progress }: { user: DashboardUser; progress: DashboardProgress }) {
   const firstName = user.name.split(' ')[0];
   const currentBelt = BELTS.find((b) => b.id === user.beltId) ?? BELTS[0];
   const joinDate = new Date(user.createdAt).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
   });
+  const progressPct = progress.totalTutorials > 0
+    ? Math.round((progress.completedCount / progress.totalTutorials) * 100)
+    : 0;
 
   return (
     <>
@@ -151,6 +160,56 @@ export default function Dashboard({ user }: { user: DashboardUser }) {
               </p>
             </div>
           </div>
+
+          {/* Progress bar */}
+          <div style={{
+            background: '#111111',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 16,
+            padding: '24px',
+            marginBottom: 16,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+              <p style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, fontSize: 14, color: '#fff', margin: 0 }}>
+                Tutorial Progress
+              </p>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+                {progress.completedCount} / {progress.totalTutorials} completed
+              </p>
+            </div>
+            <div style={{
+              width: '100%', height: 8, borderRadius: 4,
+              background: 'rgba(255,255,255,0.06)', overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${progressPct}%`, height: '100%',
+                background: currentBelt.color,
+                boxShadow: `0 0 10px ${currentBelt.color}88`,
+                borderRadius: 4,
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
+          </div>
+
+          {/* Resume last tutorial */}
+          {progress.lastWatched && (
+            <Link
+              href={`/tutorials/${progress.lastWatched.beltSlug}?t=${progress.lastWatched.tutorialId}`}
+              className="quick-link"
+              style={{ display: 'flex', marginBottom: 40 }}
+            >
+              <div>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C9A84C', margin: '0 0 6px' }}>
+                  Resume Where You Left Off
+                </p>
+                <p style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, fontSize: 16, color: '#fff', margin: 0 }}>
+                  {progress.lastWatched.title}
+                </p>
+              </div>
+              <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
+            </Link>
+          )}
+          {!progress.lastWatched && <div style={{ marginBottom: 40 }} />}
 
           {/* Quick action links */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>

@@ -71,6 +71,20 @@ export async function signOut() {
   if (error) throw error;
 }
 
+// Sends a real Supabase password-reset email. The link in that email lands
+// the member back on /auth/reset-password with a recovery session, where
+// they set a new password. Always resolves without throwing on a
+// not-found email — confirming/denying an account exists by email is an
+// account-enumeration risk, so the caller shows the same "check your
+// email" message either way.
+export async function sendPasswordReset(email: string) {
+  const supabase = createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/reset-password`,
+  });
+  if (error) throw error;
+}
+
 // Client-side role read — for components like Navbar that run in the
 // browser and just need "guest / member / admin" to decide what to show.
 // Relies on the "Users can read their own row" RLS policy.

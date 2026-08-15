@@ -126,7 +126,7 @@ export default function ContactPreview() {
         {/* CTA */}
         <div style={{ textAlign: "center", marginTop: 48 }}>
           <Link href="/contact" className="cta-btn">
-            Send Us a Message →
+            View Contact Details →
           </Link>
         </div>
 
