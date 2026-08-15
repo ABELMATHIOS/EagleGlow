@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { ClassSchedule, ClassType } from '@/src/types';
-import { CLASSES as SHARED_CLASSES, DAYS } from '@/src/data/classes';
+import { createClass, updateClass, deleteClass as deleteClassAction } from '@/src/lib/admin-action';
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const TYPE_COLORS: Record<ClassType, string> = {
   wushu: '#C9A84C',
@@ -11,10 +13,6 @@ const TYPE_COLORS: Record<ClassType, string> = {
 
 function formatDuration(minutes: number): string {
   return `${minutes} min`;
-}
-
-function makeId(day: string, time: string) {
-  return `${day.slice(0, 3).toLowerCase()}-${time.replace(':', '')}-${Date.now().toString(36).slice(-4)}`;
 }
 
 type Draft = {
@@ -37,16 +35,21 @@ const EMPTY_DRAFT: Draft = {
   durationMinutes: '60',
 };
 
-export default function AdminClasses() {
-  // Mock data — seeded from the shared classes list (src/data/classes.ts).
-  // Replace with Supabase queries/mutations later; for now, edits only
-  // persist in this component's local state for the current session.
-  const [classes, setClasses] = useState<ClassSchedule[]>(SHARED_CLASSES);
-  const [filterDay, setFilterDay] = useState('all');
-  const [filterType, setFilterType] = useState('all');
-  const [selected, setSelected] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+type AdminClassesProps = {
+  initialClasses: ClassSchedule[]; // real Supabase classes, fetched via getClasses()
+};
+
+export default function AdminClasses({ initialClasses }: AdminClassesProps) {
+  const [classes,       setClasses]       = useState<ClassSchedule[]>(initialClasses);
+  const [filterDay,     setFilterDay]     = useState('all');
+  const [filterType,    setFilterType]    = useState('all');
+  const [selected,      setSelected]      = useState<string | null>(null);
+  const [adding,        setAdding]        = useState(false);
+  const [draft,         setDraft]         = useState<Draft>(EMPTY_DRAFT);
+
+  const [saving,        setSaving]        = useState(false);
+  const [saveError,     setSaveError]     = useState<string | null>(null);
+  const [deletingId,    setDeletingId]    = useState<string | null>(null);
 
   const filtered = classes
     .filter((c) => filterDay === 'all' || c.day === filterDay)
@@ -58,6 +61,7 @@ export default function AdminClasses() {
   const startAdd = () => {
     setDraft(EMPTY_DRAFT);
     setSelected(null);
+    setSaveError(null);
     setAdding(true);
   };
 
@@ -72,6 +76,7 @@ export default function AdminClasses() {
       durationMinutes: String(c.durationMinutes),
     });
     setSelected(c.id);
+    setSaveError(null);
     setAdding(false);
   };
 
@@ -85,31 +90,51 @@ export default function AdminClasses() {
     draft.title.trim().length > 0 &&
     Number(draft.durationMinutes) > 0;
 
-  const saveDraft = () => {
+  async function saveDraft() {
     if (!draftValid) return;
-    const patch: Omit<ClassSchedule, 'id'> = {
-      day: draft.day,
-      time: draft.time.trim(),
-      title: draft.title.trim(),
-      type: draft.type,
-      level: draft.level.trim() || undefined,
-      instructor: draft.instructor.trim() || undefined,
-      durationMinutes: Number(draft.durationMinutes),
-    };
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const payload = {
+        day: draft.day,
+        time: draft.time.trim(),
+        title: draft.title.trim(),
+        type: draft.type,
+        level: draft.level.trim() || null,
+        instructor: draft.instructor.trim() || null,
+        durationMinutes: Number(draft.durationMinutes),
+      };
 
-    if (selected) {
-      setClasses((prev) => prev.map((c) => (c.id === selected ? { ...c, ...patch } : c)));
-    } else {
-      setClasses((prev) => [...prev, { id: makeId(draft.day, draft.time), ...patch }]);
+      if (selected) {
+        const { class: updated } = await updateClass(selected, payload);
+        setClasses((prev) => prev.map((c) => (c.id === selected ? toClass(updated) : c)));
+      } else {
+        const { class: created } = await createClass(payload);
+        setClasses((prev) => [...prev, toClass(created)]);
+      }
+
+      setAdding(false);
+      setSelected(null);
+      setDraft(EMPTY_DRAFT);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save class');
+    } finally {
+      setSaving(false);
     }
-    setAdding(false);
-    setSelected(null);
-  };
+  }
 
-  const deleteClass = (id: string) => {
-    setClasses((prev) => prev.filter((c) => c.id !== id));
-    if (selected === id) setSelected(null);
-  };
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      await deleteClassAction(id);
+      setClasses((prev) => prev.filter((c) => c.id !== id));
+      if (selected === id) setSelected(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to delete class');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const showForm = adding || Boolean(selectedClass);
 
@@ -189,7 +214,6 @@ export default function AdminClasses() {
           font-family: 'Inter', sans-serif;
           outline: none;
           cursor: pointer;
-          
         }
         .admin-select option {
           background: #111;
@@ -223,6 +247,7 @@ export default function AdminClasses() {
           transition: all 0.18s;
         }
         .admin-btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.8); }
+        .admin-btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
         .admin-btn-danger {
           background: rgba(231,76,60,0.1);
           color: #E74C3C;
@@ -236,6 +261,7 @@ export default function AdminClasses() {
           transition: all 0.18s;
         }
         .admin-btn-danger:hover { background: rgba(231,76,60,0.18); }
+        .admin-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
         .detail-panel {
           background: #111;
           border: 1px solid rgba(255,255,255,0.06);
@@ -253,6 +279,7 @@ export default function AdminClasses() {
           margin: 0 0 6px;
           display: block;
         }
+        .field-error { font-size: 11px; color: #E74C3C; margin: 4px 0 0; }
         @media (max-width: 1000px) {
           .classes-layout { grid-template-columns: 1fr; }
           .detail-panel { position: static; }
@@ -278,6 +305,8 @@ export default function AdminClasses() {
         </div>
         <button className="admin-btn-gold" onClick={startAdd}>+ Add Class</button>
       </div>
+
+      {saveError && !showForm && <p className="field-error" style={{ marginBottom: 16 }}>{saveError}</p>}
 
       {/* Filters */}
       <div className="filter-bar">
@@ -397,15 +426,22 @@ export default function AdminClasses() {
               </div>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                <button className="admin-btn-gold" style={{ flex: 1 }} disabled={!draftValid} onClick={saveDraft}>
-                  {selected ? 'Save Changes' : 'Add Class'}
+                <button className="admin-btn-gold" style={{ flex: 1 }} disabled={!draftValid || saving} onClick={saveDraft}>
+                  {saving ? 'Saving...' : selected ? 'Save Changes' : 'Add Class'}
                 </button>
-                <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelForm}>Cancel</button>
+                <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelForm} disabled={saving}>Cancel</button>
               </div>
 
+              {saveError && <p className="field-error">{saveError}</p>}
+
               {selected && (
-                <button className="admin-btn-danger" style={{ width: '100%' }} onClick={() => deleteClass(selected)}>
-                  Delete Class
+                <button
+                  className="admin-btn-danger"
+                  style={{ width: '100%' }}
+                  onClick={() => handleDelete(selected)}
+                  disabled={deletingId === selected}
+                >
+                  {deletingId === selected ? 'Deleting...' : 'Delete Class'}
                 </button>
               )}
             </div>
@@ -414,4 +450,19 @@ export default function AdminClasses() {
       </div>
     </>
   );
+}
+
+// Converts the API response's snake_case-adjacent shape (normalized by the
+// classes API routes) into the ClassSchedule type this component uses.
+function toClass(raw: any): ClassSchedule {
+  return {
+    id: raw.id,
+    day: raw.day,
+    time: raw.time,
+    title: raw.title,
+    type: raw.type,
+    level: raw.level ?? undefined,
+    instructor: raw.instructor ?? undefined,
+    durationMinutes: raw.duration_minutes,
+  };
 }

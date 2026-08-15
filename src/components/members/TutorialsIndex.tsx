@@ -1,26 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { BELTS as SHARED_BELTS } from '@/src/data/belts';
-import { getTutorialsByBelt, isTutorialCompleted } from '@/src/data/tutorials';
+import type { Tutorial, Belt } from '@/src/types';
 
-// SDA rule: a member should only see their current belt and belts below
-// it. Deliberately left unlocked for everyone until real accounts/auth
-// exist — locking it now would lock every visitor identically, since
-// there's no real per-user belt yet. Re-enable once login is real: swap
-// `unlocked: true` below for `unlocked: b.order <= <real user's belt order>`.
-const BELTS = SHARED_BELTS.map((b) => {
-  const beltTutorials = getTutorialsByBelt(b.id).filter((t) => t.published);
-  return {
-    name: b.name,
-    slug: b.slug,
-    color: b.color,
-    textColor: b.textColor,
-    tutorials: beltTutorials.length,
-    completed: beltTutorials.filter((t) => isTutorialCompleted(t.id)).length,
-    unlocked: true,
-  };
-});
+type TutorialsIndexProps = {
+  tutorials: Tutorial[]; // real Supabase published tutorials
+  belts: Belt[]; // real Supabase belts, sorted by order ascending
+  userBeltOrder: number; // the logged-in member's current belt's order (0 if none)
+  completedTutorialIds: string[]; // real progress from tutorial_progress table
+};
 
 function SectionLabel({ text }: { text: string }) {
   return (
@@ -39,7 +27,24 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function TutorialsIndex() {
+export default function TutorialsIndex({ tutorials, belts, userBeltOrder, completedTutorialIds }: TutorialsIndexProps) {
+  const completedSet = new Set(completedTutorialIds);
+
+  // A member can see their current belt and everything below it — not belts
+  // above their current level.
+  const BELT_CARDS = belts.map((b) => {
+    const beltTutorials = tutorials.filter((t) => t.beltId === b.id);
+    return {
+      name: b.name,
+      slug: b.slug,
+      color: b.color,
+      textColor: b.textColor,
+      tutorials: beltTutorials.length,
+      completed: beltTutorials.filter((t) => completedSet.has(t.id)).length,
+      unlocked: b.order <= userBeltOrder,
+    };
+  });
+
   return (
     <>
       <style>{`
@@ -108,7 +113,7 @@ export default function TutorialsIndex() {
 
           {/* Belt cards grid */}
           <div className="tutorials-grid">
-            {BELTS.map((belt, i) => {
+            {BELT_CARDS.map((belt, i) => {
               const percent = belt.tutorials > 0
                 ? Math.round((belt.completed / belt.tutorials) * 100) : 0;
 

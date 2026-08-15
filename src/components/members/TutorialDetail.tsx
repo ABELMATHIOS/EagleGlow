@@ -1,35 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Tutorial as DbTutorial } from '@/src/types';
 import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
+import { markTutorialComplete, markTutorialIncomplete } from '@/src/lib/tutorial-progress-client';
 
 /* ============================================================
    TYPES & DATA
-   Flat structure: one tutorial list tagged with `belt`, instead
-   of one array per belt. Add a tutorial anywhere by pushing one
-   object — nothing to duplicate across belts.
    ============================================================ */
 
 type BeltId = 'white' | 'yellow' | 'green' | 'blue' | 'red' | 'brown' | 'black';
 type Category = 'taolu' | 'kicks' | 'sanda' | 'gymnastics' | 'flexibility';
 
 type Tutorial = {
-  id: string;              // unique across ALL belts, e.g. 'white-1'
+  id: string;
   belt: BeltId;
   title: string;
-  durationMinutes?: number; // omit for instructor-led entries with no video
+  durationMinutes?: number;
   description?: string;
   completed: boolean;
   category: Category;
-  videoId?: string;        // YouTube video ID — omit for instructor-led, no-video sessions
+  videoId?: string;
 };
 
-// Derived from the shared belts list; True black (#000) would be invisible
-// against this page's near-black (#0a0a0a) background, so black belt keeps
-// a lighter charcoal override here for visibility, while sourcing the belt
-// name/slug from the same shared data everywhere else uses.
 const BELTS: Record<BeltId, { name: string; color: string }> = Object.fromEntries(
   SHARED_BELTS.map((b) => [b.slug, { name: b.name, color: b.slug === 'black' ? '#3A3A3A' : b.color }])
 ) as Record<BeltId, { name: string; color: string }>;
@@ -42,16 +36,6 @@ const CATEGORY_LABEL: Record<Category, string> = {
   flexibility: 'Flexibility',
 };
 
-// Static grading reference — NOT computed from watch progress, no admin
-// connection. The instructor gives the real result in person; this is here
-// so students know what they're being tested on and roughly what's expected.
-// "Discipline" has no tutorials/videos — it's assessed directly by the
-// instructor, so it carries a `display` string instead of a `minPercent`.
-// Each category has its OWN required minimum — not blended into one combined
-// score. A student needs 50%+ in Taolu AND 50%+ in Kicks AND 50%+ in Sanda,
-// etc. — a weak category can't be offset by a strong one. All default to the
-// same 50% bar here; bump any individual category's number if your program
-// wants a specific one to be stricter (e.g. Kicks at 70%).
 const GRADING_REQUIREMENTS: Record<BeltId, { category: string; minPercent?: number; display?: string }[]> = {
   white: [
     { category: 'Taolu / Forms',       minPercent: 50 },
@@ -228,11 +212,14 @@ function FilterChips({
 }
 
 function TutorialRow({
-  tutorial, isActive, onToggle,
+  tutorial, isActive, onToggle, onToggleComplete, togglingComplete, canToggleComplete,
 }: {
   tutorial: Tutorial;
   isActive: boolean;
   onToggle: () => void;
+  onToggleComplete: () => void;
+  togglingComplete: boolean;
+  canToggleComplete: boolean;
 }) {
   const hasVideo = Boolean(tutorial.videoId);
   const panelId = `tutorial-panel-${tutorial.id}`;
@@ -283,7 +270,7 @@ function TutorialRow({
 
         {/* Watch / instructor-led affordance */}
         <span className={`watch-btn${hasVideo ? '' : ' instructor'}`}>
-          {hasVideo ? (tutorial.completed ? '↺ Rewatch' : '▶ Watch') : '🧑‍🏫 Details'}
+          {hasVideo ? '▶ Watch' : '🧑‍🏫 Details'}
         </span>
       </button>
 
@@ -318,6 +305,21 @@ function TutorialRow({
               </p>
             </div>
           )}
+
+          {canToggleComplete && (
+            <button
+              type="button"
+              className={`complete-toggle-btn${tutorial.completed ? ' done' : ''}`}
+              onClick={onToggleComplete}
+              disabled={togglingComplete}
+            >
+              {togglingComplete
+                ? 'Saving...'
+                : tutorial.completed
+                  ? '✓ Completed — click to undo'
+                  : 'Mark as Complete'}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -330,17 +332,19 @@ function TutorialRow({
 
 type TutorialDetailProps = {
   belt: string;
-  tutorials: DbTutorial[]; // real Supabase published tutorials, fetched via getPublishedTutorials()
+  tutorials: DbTutorial[]; // real Supabase published tutorials
+  currentUserId: string | null; // null if not logged in — disables mark-complete
+  completedTutorialIds: string[]; // real progress from tutorial_progress table
 };
 
-export default function TutorialDetail({ belt, tutorials: dbTutorials }: TutorialDetailProps) {
+export default function TutorialDetail({ belt, tutorials: dbTutorials, currentUserId, completedTutorialIds }: TutorialDetailProps) {
   const beltId = (belt in BELTS ? belt : null) as BeltId | null;
   const beltMeta = beltId ? BELTS[beltId] : { name: 'Unknown', color: '#C9A84C' };
 
-  // Map real Supabase tutorials into this component's display shape.
-  // Completion tracking has no real backend yet, so every tutorial is
-  // stubbed as not completed until a tutorial_progress table exists.
-  const TUTORIALS: Tutorial[] = dbTutorials.map((t) => {
+  const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(completedTutorialIds));
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const TUTORIALS: Tutorial[] = useMemo(() => dbTutorials.map((t) => {
     const beltSlug = getBeltById(t.beltId)?.slug as BeltId | undefined;
     const videoId = t.videoUrl ? t.videoUrl.split('v=')[1] : undefined;
     return {
@@ -349,11 +353,11 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials }: Tutoria
       title: t.title,
       durationMinutes: t.durationMinutes,
       description: t.description,
-      completed: false,
+      completed: completedIds.has(t.id),
       category: t.category as Category,
       videoId,
     };
-  });
+  }), [dbTutorials, completedIds]);
 
   const tutorialsForBelt = beltId ? TUTORIALS.filter((t) => t.belt === beltId) : [];
   const requirements = beltId ? GRADING_REQUIREMENTS[beltId] : [];
@@ -361,9 +365,6 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials }: Tutoria
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
 
-  // All categories, every belt — not filtered down to only categories that
-  // currently have a tutorial for this belt. Belts with no content in a
-  // category will just show an empty list when that chip is selected.
   const presentCategories = Object.keys(CATEGORY_LABEL) as Category[];
 
   const overallCompleted = tutorialsForBelt.filter((t) => t.completed).length;
@@ -371,6 +372,28 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials }: Tutoria
   const visibleTutorials = activeCategory === 'all'
     ? tutorialsForBelt
     : tutorialsForBelt.filter((t) => t.category === activeCategory);
+
+  async function handleToggleComplete(tutorialId: string, currentlyCompleted: boolean) {
+    if (!currentUserId) return;
+    setTogglingId(tutorialId);
+    try {
+      if (currentlyCompleted) {
+        await markTutorialIncomplete(currentUserId, tutorialId);
+        setCompletedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(tutorialId);
+          return next;
+        });
+      } else {
+        await markTutorialComplete(currentUserId, tutorialId);
+        setCompletedIds((prev) => new Set(prev).add(tutorialId));
+      }
+    } catch (err) {
+      console.error('Failed to update progress:', err);
+    } finally {
+      setTogglingId(null);
+    }
+  }
 
   return (
     <>
@@ -481,6 +504,35 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials }: Tutoria
         .instructor-note-body {
           font-family: Inter, sans-serif; font-size: 13px; line-height: 1.6;
           color: rgba(255,255,255,0.6);
+        }
+
+        .complete-toggle-btn {
+          display: block;
+          width: 100%;
+          margin-top: 14px;
+          background: transparent;
+          color: #C9A84C;
+          border: 1px solid rgba(201,168,76,0.4);
+          border-radius: 10px;
+          padding: 12px 18px;
+          font-family: Inter, sans-serif;
+          font-size: 12.5px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          cursor: pointer;
+          transition: all 0.18s;
+        }
+        .complete-toggle-btn:hover:not(:disabled) {
+          background: rgba(201,168,76,0.1);
+        }
+        .complete-toggle-btn.done {
+          background: rgba(46,204,113,0.08);
+          border-color: rgba(46,204,113,0.4);
+          color: #2ECC71;
+        }
+        .complete-toggle-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .back-link {
@@ -607,6 +659,9 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials }: Tutoria
                 tutorial={t}
                 isActive={activeId === t.id}
                 onToggle={() => setActiveId(activeId === t.id ? null : t.id)}
+                onToggleComplete={() => handleToggleComplete(t.id, t.completed)}
+                togglingComplete={togglingId === t.id}
+                canToggleComplete={Boolean(currentUserId)}
               />
             ))}
           </div>

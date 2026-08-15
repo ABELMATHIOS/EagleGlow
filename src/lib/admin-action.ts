@@ -114,3 +114,37 @@ export async function deleteTutorial(id: string) {
   }
   return res.json();
 }
+export async function createClass(classItem: Record<string, unknown>) {
+  const res = await fetch("/api/admin/classes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(classItem),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to create class");
+  }
+  return res.json();
+}
+
+export async function updateClass(id: string, patch: Record<string, unknown>) {
+  const res = await fetch(`/api/admin/classes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to update class");
+  }
+  return res.json();
+}
+
+export async function deleteClass(id: string) {
+  const res = await fetch(`/api/admin/classes/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to delete class");
+  }
+  return res.json();
+}
