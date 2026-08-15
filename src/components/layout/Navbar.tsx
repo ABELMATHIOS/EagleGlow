@@ -196,7 +196,7 @@ export default function Navbar() {
                 boxShadow: "0 0 12px rgba(201,168,76,0.12)",
                 flexShrink: 0,
               }}>
-                <Image src="/images/Eagle-Logo.png" alt="EagleGlow" fill className="object-cover"
+                <Image src="/images/Eagle-Logo.png" alt="EagleGlow" fill sizes="40px" className="object-cover"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", lineHeight: 1, gap: 3 }}>
@@ -309,7 +309,7 @@ export default function Navbar() {
               boxShadow: "0 0 10px rgba(201,168,76,0.12)",
               flexShrink: 0,
             }}>
-              <Image src="/images/Eagle-Logo.png" alt="EagleGlow" fill className="object-cover"
+              <Image src="/images/Eagle-Logo.png" alt="EagleGlow" fill sizes="28px" className="object-cover"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>

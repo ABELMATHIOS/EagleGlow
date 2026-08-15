@@ -48,6 +48,16 @@ const navItems = [
     ),
   },
   {
+  label: 'Home',
+  href: '/admin/home',
+  icon: (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  ),
+},
+  {
   label: 'Gallery',
   href: '/admin/gallery',
   icon: (
@@ -57,6 +67,17 @@ const navItems = [
       <polyline points="21 15 16 10 5 21"/>
     </svg>
   ),
+  },
+  {
+    label: 'About',
+    href: '/admin/about',
+    icon: (
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+    ),
   },
   {
     label: 'Back to Site',
@@ -142,6 +163,7 @@ export default function AdminSidebar() {
                 src="/images/Eagle-Logo.png"
                 alt="EagleGlow"
                 fill
+                sizes="34px"
                 style={{ objectFit: 'cover' }}
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
               />

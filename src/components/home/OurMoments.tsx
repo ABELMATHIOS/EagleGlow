@@ -4,14 +4,13 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-const photos = [
-  { src: "/images/moment-1.jpg", alt: "EagleGlow training moment 1" },
-  { src: "/images/moment-2.jpg", alt: "EagleGlow training moment 2" },
-  { src: "/images/moment-3.JPG", alt: "EagleGlow training moment 3" },
-  { src: "/images/moment-4.JPG", alt: "EagleGlow training moment 4" },
-];
+type Photo = { src: string; alt: string };
 
-export default function OurMoments() {
+type OurMomentsProps = {
+  photos: Photo[];
+};
+
+export default function OurMoments({ photos }: OurMomentsProps) {
   const [errors, setErrors] = useState<Record<number, boolean>>({});
 
   return (
@@ -79,12 +78,13 @@ export default function OurMoments() {
             background: "#1a1a1a",
             border: "0.5px solid rgba(255,255,255,0.06)",
           }}>
-            {errors[0] ? (
-              <PlaceholderImage />
-            ) : (
-              <Image
-                src={photos[0].src}
-                alt={photos[0].alt}
+            {!photos[0] || errors[0] ? (
+  <PlaceholderImage />
+) : (
+  <Image
+    src={photos[0].src}
+    alt={photos[0].alt}
+    
                 fill
                 style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
                 className="moments-img"
@@ -107,11 +107,11 @@ export default function OurMoments() {
                   border: "0.5px solid rgba(255,255,255,0.06)",
                 }}
               >
-                {errors[i] ? (
-                  <PlaceholderImage />
-                ) : (
-                  <Image
-                    src={photos[i].src}
+                              {!photos[i] || errors[i] ? (
+                <PlaceholderImage />
+              ) : (
+                <Image
+                  src={photos[i].src}
                     alt={photos[i].alt}
                     fill
                     style={{ objectFit: "cover", transition: "transform 0.5s ease" }}

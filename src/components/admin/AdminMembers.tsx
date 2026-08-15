@@ -4,7 +4,7 @@ import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AdminNote, NameCorrectionRequest, Status, RegistrationType, User, Belt } from '@/src/types';
-import { approveUser, promoteBelt, updateMemberStatus } from '@/src/lib/admin-action';
+import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection } from '@/src/lib/admin-action';
 
 // This admin view keeps its own flat shape (fullName/belt-as-name instead of
 // name/beltId) because that's what this screen's filtering and CSV export
@@ -133,6 +133,8 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
   // Admin notes — new entry composer
   const [newNote, setNewNote] = useState('');
 
+  const [correctionSaving, setCorrectionSaving] = useState<string | null>(null);
+  const [correctionError,  setCorrectionError]  = useState<string | null>(null);
   const filtered = members.filter((m) => {
     const matchSearch = m.fullName.toLowerCase().includes(search.toLowerCase()) ||
       m.email.toLowerCase().includes(search.toLowerCase());
@@ -255,12 +257,32 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     setNewNote('');
   };
 
-  const approveNameCorrection = (id: string) => {
+  const approveNameCorrection = async (id: string) => {
     if (!selectedMember?.nameCorrectionRequest) return;
-    updateMember(id, { fullName: selectedMember.nameCorrectionRequest.requestedName, nameCorrectionRequest: null });
+    setCorrectionSaving(id);
+    setCorrectionError(null);
+    try {
+      await reviewNameCorrection(id, 'approve');
+      updateMember(id, { fullName: selectedMember.nameCorrectionRequest.requestedName, nameCorrectionRequest: null });
+    } catch (err) {
+      setCorrectionError(err instanceof Error ? err.message : 'Failed to approve correction');
+    } finally {
+      setCorrectionSaving(null);
+    }
   };
-  const rejectNameCorrection = (id: string) => updateMember(id, { nameCorrectionRequest: null });
 
+  const rejectNameCorrection = async (id: string) => {
+    setCorrectionSaving(id);
+    setCorrectionError(null);
+    try {
+      await reviewNameCorrection(id, 'reject');
+      updateMember(id, { nameCorrectionRequest: null });
+    } catch (err) {
+      setCorrectionError(err instanceof Error ? err.message : 'Failed to reject correction');
+    } finally {
+      setCorrectionSaving(null);
+    }
+  };
   const handleExport = () => {
     if (filtered.length === 0) return;
     const headerRow = CSV_COLUMNS.map((c) => c.header).join(',');
@@ -680,9 +702,14 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                   )}
                   <div className="detail-row" style={{ marginBottom: 12 }}><span>Submitted</span><span>{selectedMember.nameCorrectionRequest.submittedAt}</span></div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="admin-btn-gold" style={{ flex: 1 }} onClick={() => approveNameCorrection(selectedMember.id)}>Approve</button>
-                    <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => rejectNameCorrection(selectedMember.id)}>Reject</button>
+                    <button className="admin-btn-gold" style={{ flex: 1 }} onClick={() => approveNameCorrection(selectedMember.id)} disabled={correctionSaving === selectedMember.id}>
+                      {correctionSaving === selectedMember.id ? 'Saving...' : 'Approve'}
+                    </button>
+                    <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => rejectNameCorrection(selectedMember.id)} disabled={correctionSaving === selectedMember.id}>
+                      {correctionSaving === selectedMember.id ? 'Saving...' : 'Reject'}
+                    </button>
                   </div>
+                  {correctionError && <p className="field-error">{correctionError}</p>}
                 </div>
               )}
 
@@ -782,8 +809,8 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                       />
                       {contactDraft.emergencyPhone && !PHONE_RE.test(contactDraft.emergencyPhone) && <p className="field-error">Enter a valid phone number.</p>}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button className="admin-btn-gold" style={{ flex: 1 }} disabled={!contactValid} onClick={() => saveEditContact(selectedMember.id)}>Save</button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="admin-btn-gold" style={{ flex: 1 }} onClick={() => saveEditContact(selectedMember.id)} disabled={!contactValid}>Save</button>
                       <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelEditContact}>Cancel</button>
                     </div>
                   </div>

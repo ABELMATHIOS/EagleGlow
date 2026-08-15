@@ -49,7 +49,8 @@ export default function ProfilePage({ user }: ProfileProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const [correctionSaving, setCorrectionSaving] = useState(false);
+  const [correctionError, setCorrectionError] = useState<string | null>(null);
  const currentBelt = BELTS.find((b) => b.order === MEMBER.beltOrder)!;
   const nextBelt = BELTS.find((b) => b.order === MEMBER.beltOrder + 1);
 
@@ -196,14 +197,26 @@ export default function ProfilePage({ user }: ProfileProps) {
     setRequestingCorrection(false);
   };
 
-  const submitCorrectionRequest = () => {
+  const submitCorrectionRequest = async () => {
     if (!correctionValid) return;
-    // NOTE: no backend exists yet — this is UI only. Once a place to store it
-    // exists, this should write a row an admin can review/approve (e.g. a
-    // `name_correction_requests` table, or a membership_history-style entry with
-    // reason set to the member's note) rather than editing MEMBER.name directly —
-    // name changes should stay admin-approved, same as belt assignment.
-    setCorrectionSubmitted(true);
+    setCorrectionSaving(true);
+    setCorrectionError(null);
+    try {
+      const res = await fetch("/api/profile/name-correction", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestedName: correctedName.trim(), note: correctionNote.trim() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to submit request");
+      }
+      setCorrectionSubmitted(true);
+    } catch (err) {
+      setCorrectionError(err instanceof Error ? err.message : "Failed to submit request");
+    } finally {
+      setCorrectionSaving(false);
+    }
   };
 
   return (
@@ -646,9 +659,12 @@ export default function ProfilePage({ user }: ProfileProps) {
                     placeholder="e.g. misspelled at registration"
                   />
                   <div style={{ marginTop: "16px", display: "flex", gap: "10px" }}>
-                    <button className="save-btn" onClick={submitCorrectionRequest} disabled={!correctionValid}>SUBMIT REQUEST</button>
-                    <button className="edit-btn" onClick={cancelCorrectionRequest}>CANCEL</button>
+                   <button className="save-btn" onClick={submitCorrectionRequest} disabled={!correctionValid || correctionSaving}>
+                      {correctionSaving ? "SUBMITTING..." : "SUBMIT REQUEST"}
+                    </button>
+                    <button className="edit-btn" onClick={cancelCorrectionRequest} disabled={correctionSaving}>CANCEL</button>
                   </div>
+                  {correctionError && <p className="field-error">{correctionError}</p>}
                 </div>
               )}
 

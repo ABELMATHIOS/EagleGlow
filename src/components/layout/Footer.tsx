@@ -269,7 +269,7 @@ export default function Footer() {
           {/* Brand — logo + wordmark, matches the Navbar. First on mobile via CSS order. */}
           <a href="/" className="ft-brand">
             <div className="ft-logo-ring">
-              <Image src="/images/Eagle-Logo.png" alt="EagleGlow" fill className="object-cover" />
+              <Image src="/images/Eagle-Logo.png" alt="EagleGlow" fill sizes="44px" className="object-cover" />
             </div>
             <div className="ft-brand-text">
               <span className="ft-wordmark">

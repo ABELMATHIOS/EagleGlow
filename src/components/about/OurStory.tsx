@@ -1,5 +1,7 @@
 'use client';
 
+import type { AboutContent } from '@/src/types';
+
 function SectionLabel({ text }: { text: string }) {
   return (
     <div style={{
@@ -17,13 +19,7 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-const paragraphs = [
-  'EagleGlow Wushu & Fitness Center was founded in 2002 by Master Endale Melse in the heart of Addis Ababa. What began as a small training group in Garji Jacros has grown into one of the most respected martial arts institutions in Ethiopia.',
-  'For over two decades, EagleGlow has been dedicated to teaching authentic Shaolin Wushu — including Taolu (forms) and Sanda (combat) — alongside modern fitness disciplines like Zumba, Tae Bo, and Aerobics. Our holistic approach unites physical training with mental discipline and spiritual growth.',
-  'Under the unwavering leadership of Master Endale, more than 1,000 students have passed through our doors, each leaving with not just martial arts skills, but with confidence, discipline, and a lifelong respect for the art. Our 7-belt pathway provides a structured journey from White Belt all the way to Black Belt.',
-  'Today, EagleGlow stands as a beacon of martial arts culture in Addis Ababa — a community where all ages, backgrounds, and skill levels are welcomed, trained, and empowered.',
-];
-
+// Stats row is intentionally hardcoded — out of CMS scope (see SESSION_LOG).
 const stats = [
   { num: '2002', label: 'Founded' },
   { num: '23+',  label: 'Years Experience' },
@@ -31,7 +27,12 @@ const stats = [
   { num: '7',    label: 'Belt Levels' },
 ];
 
-export default function OurStory() {
+export default function OurStory({ content }: { content: AboutContent }) {
+  const paragraphs = content.ourStory
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
   return (
     <section style={{ background: '#0d0d0d', padding: '96px 24px' }}>
       <div style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center' }}>

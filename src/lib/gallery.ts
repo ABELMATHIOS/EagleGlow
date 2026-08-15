@@ -67,3 +67,23 @@ export async function getAllAlbums(): Promise<GalleryAlbum[]> {
   if (error) throw error;
   return (data as AlbumRow[]).map(toAlbum);
 }
+
+
+export async function getMomentPhotos(limit = 4): Promise<{ src: string; alt: string }[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('albums')
+    .select('title, preview_urls, created_at')
+    .eq('published', true)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    console.error('Failed to fetch moment photos:', error);
+    return [];
+  }
+
+  return data
+    .flatMap((album) => (album.preview_urls ?? []).map((src: string) => ({ src, alt: album.title })))
+    .slice(0, limit);
+}

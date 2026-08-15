@@ -3,7 +3,11 @@
 import React from "react";
 import Link from "next/link";
 
-export default function HeroSection() {
+type HeroSectionProps = {
+  videoUrl?: string | null;
+};
+
+export default function HeroSection({ videoUrl }: HeroSectionProps) {
   return (
     <>
       <section className="hero-section" style={{
@@ -29,7 +33,7 @@ export default function HeroSection() {
             opacity: 0.4,
           }}
         >
-          <source src="/videos/hero.mp4" type="video/mp4" />
+          <source src={videoUrl || "/videos/hero.mp4"} type="video/mp4" />
         </video>
 
         {/* Overlays */}

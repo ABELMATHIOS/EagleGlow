@@ -107,3 +107,27 @@ export interface GalleryAlbum {
   published:  boolean;
   previews:   string[];
 }
+// Add to src/types.ts
+
+// Add to src/types.ts
+
+export type Certificate = {
+  id: string;
+  url: string;
+  caption: string;
+};
+
+export type AboutContent = {
+  ourStory: string;
+  ourVision: string;
+  ourMission: string;
+  ourGoal: string;
+  masterName: string;
+  masterTitle: string;
+  masterBio: string;
+  quoteText: string;
+  quoteAuthor: string;
+  masterPhotoUrl: string | null;
+  certificates: Certificate[];
+  updatedAt: string;
+};

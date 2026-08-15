@@ -2,72 +2,25 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import type { ClassSchedule } from "@/src/types";
 
-const schedule = [
-  {
-    day: "Monday",
-    short: "MON",
-    classes: [
-      { time: "6:00 AM",  name: "Wushu",       level: "All Levels",  type: "wushu"   },
-      { time: "12:00 PM", name: "Fitness",      level: "All Levels",  type: "fitness" },
-      { time: "6:00 PM",  name: "Wushu",        level: "Advanced",    type: "wushu"   },
-    ],
-  },
-  {
-    day: "Tuesday",
-    short: "TUE",
-    classes: [
-      { time: "6:00 AM",  name: "Fitness",      level: "All Levels",  type: "fitness" },
-      { time: "11:00 AM", name: "Wushu Kids",   level: "Kids",        type: "kids"    },
-      { time: "12:30 PM", name: "Wushu",        level: "Beginner",    type: "wushu"   },
-    ],
-  },
-  {
-    day: "Wednesday",
-    short: "WED",
-    classes: [
-      { time: "6:00 AM",  name: "Wushu",        level: "All Levels",  type: "wushu"   },
-      { time: "12:00 PM", name: "Wushu",        level: "Intermediate", type: "wushu"  },
-      { time: "6:00 PM",  name: "Zumba",        level: "All Levels",  type: "fitness" },
-    ],
-  },
-  {
-    day: "Thursday",
-    short: "THU",
-    classes: [
-      { time: "6:00 AM",  name: "Fitness",      level: "All Levels",  type: "fitness" },
-      { time: "12:00 PM", name: "Tae Bo",       level: "All Levels",  type: "fitness" },
-      { time: "6:00 PM",  name: "Wushu",        level: "Advanced",    type: "wushu"   },
-    ],
-  },
-  {
-    day: "Friday",
-    short: "FRI",
-    classes: [
-      { time: "6:00 AM",  name: "Wushu",        level: "All Levels",  type: "wushu"   },
-      { time: "12:00 PM", name: "Fitness",      level: "All Levels",  type: "fitness" },
-      { time: "6:00 PM",  name: "Wushu Kids",   level: "Kids",        type: "kids"    },
-    ],
-  },
-  {
-    day: "Saturday",
-    short: "SAT",
-    classes: [
-      { time: "8:00 AM",  name: "Wushu",        level: "All Levels",  type: "wushu"   },
-      { time: "10:00 AM", name: "Zumba",        level: "All Levels",  type: "fitness" },
-      { time: "12:00 PM", name: "Aerobics",     level: "All Levels",  type: "fitness" },
-    ],
-  },
-];
+// Only these three days show in the Home preview (per the original design) —
+// full week is on /classes.
+const PREVIEW_DAYS = ["Monday", "Tuesday", "Wednesday"];
 
 const typeColors: Record<string, { bg: string; color: string; dot: string }> = {
   wushu:   { bg: "rgba(201,168,76,0.1)",  color: "#C9A84C",             dot: "#C9A84C"             },
   fitness: { bg: "rgba(99,179,237,0.1)",  color: "rgba(99,179,237,0.9)", dot: "rgba(99,179,237,0.9)" },
-  kids:    { bg: "rgba(154,205,50,0.1)",  color: "rgba(154,205,50,0.9)", dot: "rgba(154,205,50,0.9)" },
 };
 
-export default function SchedulePreview() {
+export default function SchedulePreview({ classes }: { classes: ClassSchedule[] }) {
+  const days = PREVIEW_DAYS.filter((d) => classes.some((c) => c.day === d));
   const [activeDay, setActiveDay] = useState(0);
+  const currentDay = days[activeDay] ?? days[0];
+
+  const dayClasses = classes
+    .filter((c) => c.day === currentDay)
+    .sort((a, b) => a.time.localeCompare(b.time));
 
   return (
     <section style={{
@@ -111,124 +64,132 @@ export default function SchedulePreview() {
           </p>
         </div>
 
-        {/* Day Tabs */}
-        <div className="schedule-tabs">
-          {schedule.map((day, i) => (
-            <button
-              key={day.day}
-              onClick={() => setActiveDay(i)}
-              className="schedule-tab"
-              style={{
-                background: activeDay === i
-                  ? "#C9A84C"
-                  : "rgba(255,255,255,0.04)",
-                color: activeDay === i
-                  ? "#111"
-                  : "rgba(255,255,255,0.4)",
-                border: activeDay === i
-                  ? "1px solid #C9A84C"
-                  : "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 10,
-                padding: "10px 0",
-                fontWeight: activeDay === i ? 700 : 500,
-                fontSize: 12,
-                letterSpacing: "0.08em",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                flex: 1,
-              }}
-            >
-              <span className="day-full">{day.day}</span>
-              <span className="day-short">{day.short}</span>
-            </button>
-          ))}
-        </div>
+        {days.length === 0 ? (
+          <p style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontFamily: "Inter, sans-serif" }}>
+            Schedule coming soon.
+          </p>
+        ) : (
+          <>
+            {/* Day Tabs */}
+            <div className="schedule-tabs">
+              {days.map((day, i) => (
+                <button
+                  key={day}
+                  onClick={() => setActiveDay(i)}
+                  className="schedule-tab"
+                  style={{
+                    background: activeDay === i
+                      ? "#C9A84C"
+                      : "rgba(255,255,255,0.04)",
+                    color: activeDay === i
+                      ? "#111"
+                      : "rgba(255,255,255,0.4)",
+                    border: activeDay === i
+                      ? "1px solid #C9A84C"
+                      : "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: 10,
+                    padding: "10px 0",
+                    fontWeight: activeDay === i ? 700 : 500,
+                    fontSize: 12,
+                    letterSpacing: "0.08em",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    flex: 1,
+                  }}
+                >
+                  <span className="day-full">{day}</span>
+                  <span className="day-short">{day.slice(0, 3).toUpperCase()}</span>
+                </button>
+              ))}
+            </div>
 
-        {/* Classes for selected day */}
-        <div style={{
-          background: "#111111",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 20,
-          overflow: "hidden",
-          marginTop: 16,
-        }}>
-          {schedule[activeDay].classes.map((cls, i) => {
-            const colors = typeColors[cls.type];
-            return (
-              <div
-                key={i}
-                className="schedule-row"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  padding: "20px 28px",
-                  borderBottom: i < schedule[activeDay].classes.length - 1
-                    ? "0.5px solid rgba(255,255,255,0.05)"
-                    : "none",
-                  transition: "background 0.2s",
-                }}
-              >
-                {/* Time */}
-                <div style={{
-                  minWidth: 80, flexShrink: 0,
-                  fontSize: 13, fontWeight: 600,
-                  color: "#C9A84C",
-                  letterSpacing: "0.05em",
-                }}>
-                  {cls.time}
-                </div>
+            {/* Classes for selected day */}
+            <div style={{
+              background: "#111111",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 20,
+              overflow: "hidden",
+              marginTop: 16,
+            }}>
+              {dayClasses.map((cls, i) => {
+                const colors = typeColors[cls.type] ?? typeColors.wushu;
+                return (
+                  <div
+                    key={cls.id}
+                    className="schedule-row"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 16,
+                      padding: "20px 28px",
+                      borderBottom: i < dayClasses.length - 1
+                        ? "0.5px solid rgba(255,255,255,0.05)"
+                        : "none",
+                      transition: "background 0.2s",
+                    }}
+                  >
+                    {/* Time */}
+                    <div style={{
+                      minWidth: 80, flexShrink: 0,
+                      fontSize: 13, fontWeight: 600,
+                      color: "#C9A84C",
+                      letterSpacing: "0.05em",
+                    }}>
+                      {cls.time}
+                    </div>
 
-                {/* Divider */}
-                <div style={{
-                  width: 1, height: 32, flexShrink: 0,
-                  background: "rgba(255,255,255,0.06)",
-                }} />
+                    {/* Divider */}
+                    <div style={{
+                      width: 1, height: 32, flexShrink: 0,
+                      background: "rgba(255,255,255,0.06)",
+                    }} />
 
-                {/* Class name + level */}
-                <div style={{ flex: 1 }}>
-                  <p style={{
-                    fontSize: 15, fontWeight: 700,
-                    color: "#fff", margin: "0 0 3px 0",
-                  }}>
-                    {cls.name}
-                  </p>
-                  <p style={{
-                    fontSize: 11,
-                    color: "rgba(255,255,255,0.3)",
-                    margin: 0, letterSpacing: "0.05em",
-                  }}>
-                    {cls.level}
-                  </p>
-                </div>
+                    {/* Class name + level */}
+                    <div style={{ flex: 1 }}>
+                      <p style={{
+                        fontSize: 15, fontWeight: 700,
+                        color: "#fff", margin: "0 0 3px 0",
+                      }}>
+                        {cls.title}
+                      </p>
+                      <p style={{
+                        fontSize: 11,
+                        color: "rgba(255,255,255,0.3)",
+                        margin: 0, letterSpacing: "0.05em",
+                      }}>
+                        {cls.level ?? "—"}
+                      </p>
+                    </div>
 
-                {/* Type badge */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  background: colors.bg,
-                  border: `0.5px solid ${colors.dot}30`,
-                  borderRadius: 100,
-                  padding: "5px 12px",
-                  flexShrink: 0,
-                }}>
-                  <span style={{
-                    width: 5, height: 5, borderRadius: "50%",
-                    background: colors.dot, flexShrink: 0,
-                  }} />
-                  <span style={{
-                    fontSize: 10, fontWeight: 600,
-                    color: colors.color,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                  }}>
-                    {cls.type === "kids" ? "Kids" : cls.type.charAt(0).toUpperCase() + cls.type.slice(1)}
-                  </span>
-                </div>
+                    {/* Type badge */}
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      background: colors.bg,
+                      border: `0.5px solid ${colors.dot}30`,
+                      borderRadius: 100,
+                      padding: "5px 12px",
+                      flexShrink: 0,
+                    }}>
+                      <span style={{
+                        width: 5, height: 5, borderRadius: "50%",
+                        background: colors.dot, flexShrink: 0,
+                      }} />
+                      <span style={{
+                        fontSize: 10, fontWeight: 600,
+                        color: colors.color,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                      }}>
+                       
+                      </span>
+                    </div>
 
-              </div>
-            );
-          })}
-        </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Legend + CTA */}
         <div style={{

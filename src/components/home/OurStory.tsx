@@ -4,8 +4,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function OurStory() {
-  const [imgError, setImgError] = useState(false);
+type OurStoryProps = {
+  photoUrl?: string | null;
+};
+
+export default function OurStory({ photoUrl }: OurStoryProps) {
+  const [imgError, setImgError] = useState(!photoUrl);
 
   return (
     <section style={{
@@ -131,13 +135,13 @@ export default function OurStory() {
                 </div>
               ) : (
                 <Image
-                  src="/images/master.jpg"
-                  alt="Master Endale Melse"
-                  fill
-                  style={{ objectFit: "cover" }}
-                  onError={() => setImgError(true)}
-                />
-              )}
+                src={photoUrl!}
+                alt="Master Endale Melse"
+                fill
+                style={{ objectFit: "cover" }}
+                onError={() => setImgError(true)}
+              />
+                )}
 
               {/* Gradient overlay */}
               <div style={{

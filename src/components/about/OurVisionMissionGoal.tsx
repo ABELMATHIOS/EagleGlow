@@ -1,5 +1,7 @@
 'use client';
 
+import type { AboutContent } from '@/src/types';
+
 function SectionLabel({ text }: { text: string }) {
   return (
     <div style={{
@@ -17,25 +19,13 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-const cards = [
-  {
-    icon: '👁',
-    label: 'Our Vision',
-    text: 'To build a strong community of martial artists and promote fitness and respect for all ages.',
-  },
-  {
-    icon: '🎯',
-    label: 'Our Mission',
-    text: 'To inspire confidence, discipline, and health through martial arts.',
-  },
-  {
-    icon: '🏆',
-    label: 'Our Goal',
-    text: 'To provide high-quality martial arts training and create opportunities for personal growth.',
-  },
-];
+export default function OurVisionMissionGoal({ content }: { content: AboutContent }) {
+  const cards = [
+    { icon: '👁', label: 'Our Vision', text: content.ourVision },
+    { icon: '🎯', label: 'Our Mission', text: content.ourMission },
+    { icon: '🏆', label: 'Our Goal', text: content.ourGoal },
+  ];
 
-export default function OurVisionMissionGoal() {
   return (
     <>
       <style>{`

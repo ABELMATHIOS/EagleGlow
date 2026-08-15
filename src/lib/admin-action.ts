@@ -148,3 +148,48 @@ export async function deleteClass(id: string) {
   }
   return res.json();
 }
+// Call from AdminMembers.tsx's Approve/Reject buttons on a pending name
+// correction request. Throws on failure so the caller can show an error.
+export async function reviewNameCorrection(userId: string, action: "approve" | "reject") {
+  const res = await fetch(`/api/admin/users/${userId}/name-correction`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to review name correction");
+  }
+
+  return res.json();
+}
+// Add to src/lib/admin-action.ts, alongside approveUser / promoteBelt /
+// updateMemberStatus / reviewNameCorrection — same fetch-and-throw pattern.
+
+import { AboutContent } from '@/src/types'; // add AboutContent + Certificate to src/types.ts, see about-types_addition.ts
+
+export async function updateAboutContent(patch: Partial<AboutContent>): Promise<AboutContent> {
+  const res = await fetch('/api/admin/about', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to update About Us content');
+  }
+  return res.json();
+}
+export async function updateHomeContent(patch: { heroVideoUrl?: string | null }) {
+  const res = await fetch('/api/admin/home', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to update Home content');
+  }
+  return res.json();
+}

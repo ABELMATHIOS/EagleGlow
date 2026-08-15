@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import type { AboutContent } from '@/src/types';
 
 function SectionLabel({ text }: { text: string }) {
   return (
@@ -20,8 +21,14 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function MeetOurMaster() {
+export default function MeetOurMaster({ content }: { content: AboutContent }) {
   const [imgError, setImgError] = useState(false);
+  const showPhoto = !!content.masterPhotoUrl && !imgError;
+
+  const bioParagraphs = content.masterBio
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   return (
     <>
@@ -121,7 +128,7 @@ export default function MeetOurMaster() {
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
                 textTransform: 'uppercase',
               }}>
-                Founder & Head Instructor
+                {content.masterTitle}
               </span>
 
               <h3 style={{
@@ -130,7 +137,7 @@ export default function MeetOurMaster() {
                 color: 'rgba(255,255,255,0.95)',
                 margin: '8px 0 12px', lineHeight: 1.2,
               }}>
-                Master Endale Melse
+                {content.masterName}
               </h3>
 
               <div style={{
@@ -138,25 +145,17 @@ export default function MeetOurMaster() {
                 borderRadius: 2, marginBottom: 24,
               }} />
 
-              <p style={{
-                fontFamily: 'Inter, sans-serif', color: 'rgba(255,255,255,0.6)',
-                fontSize: '0.95rem', lineHeight: 1.8, marginBottom: 16,
-              }}>
-                Master Endale Melse has dedicated over two decades to teaching Shaolin Wushu in
-                Ethiopia. A martial artist of exceptional discipline and vision, he founded EagleGlow
-                in 2002 with a mission to make authentic martial arts accessible to all.
-              </p>
+              {bioParagraphs.map((para, i) => (
+                <p key={i} style={{
+                  fontFamily: 'Inter, sans-serif', color: 'rgba(255,255,255,0.6)',
+                  fontSize: '0.95rem', lineHeight: 1.8,
+                  marginBottom: i < bioParagraphs.length - 1 ? 16 : 36,
+                }}>
+                  {para}
+                </p>
+              ))}
 
-              <p style={{
-                fontFamily: 'Inter, sans-serif', color: 'rgba(255,255,255,0.6)',
-                fontSize: '0.95rem', lineHeight: 1.8, marginBottom: 36,
-              }}>
-                From children to adults, beginners to advanced practitioners — Master Endale has
-                shaped over 1,000 students with not just martial arts skills, but with confidence,
-                discipline, and a lifelong respect for the art.
-              </p>
-
-              {/* Bruce Lee Quote */}
+              {/* Quote */}
               <div style={{
                 background: 'rgba(201,168,76,0.05)',
                 border: '1px solid rgba(201,168,76,0.2)',
@@ -173,15 +172,14 @@ export default function MeetOurMaster() {
                   color: 'rgba(255,255,255,0.75)', fontSize: '0.95rem',
                   lineHeight: 1.8, paddingTop: 16,
                 }}>
-                  I Fear Not The Man Who Has Practiced 10,000 Kicks Once,
-                  But I Fear The Man Who Has Practiced One Kick 10,000 Times.
+                  {content.quoteText}
                 </p>
                 <p style={{
                   fontFamily: 'Inter, sans-serif', color: '#C9A84C',
                   fontSize: '0.8rem', fontWeight: 600,
                   marginTop: 12, letterSpacing: '0.1em',
                 }}>
-                  — Bruce Lee
+                  — {content.quoteAuthor}
                 </p>
               </div>
             </div>
@@ -194,7 +192,7 @@ export default function MeetOurMaster() {
 
               {/* Photo */}
               <div className="master-photo">
-                {imgError ? (
+                {!showPhoto ? (
                   <div style={{
                     position: 'absolute', inset: 0,
                     display: 'flex', flexDirection: 'column',
@@ -215,9 +213,10 @@ export default function MeetOurMaster() {
                   </div>
                 ) : (
                   <Image
-                    src="/images/master.jpg"
-                    alt="Master Endale Melse"
+                    src={content.masterPhotoUrl as string}
+                    alt={content.masterName}
                     fill
+                    sizes="(max-width: 768px) 80vw, 433px"
                     style={{ objectFit: 'cover' }}
                     onError={() => setImgError(true)}
                   />
@@ -240,19 +239,19 @@ export default function MeetOurMaster() {
                     color: '#fff', margin: '0 0 3px 0',
                     fontFamily: 'Cinzel, serif',
                   }}>
-                    Master Endale Melse
+                    {content.masterName}
                   </p>
                   <p style={{
                     fontSize: 11, color: '#C9A84C',
                     letterSpacing: '0.1em', margin: 0,
                     fontFamily: 'Inter, sans-serif',
                   }}>
-                    Founder & Head Master
+                    {content.masterTitle}
                   </p>
                 </div>
               </div>
 
-              {/* Since badge */}
+              {/* Since badge — hardcoded, out of CMS scope */}
               <div className="master-since-badge">Since 2002</div>
 
             </div>

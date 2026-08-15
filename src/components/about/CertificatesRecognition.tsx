@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import type { AboutContent, Certificate } from '@/src/types';
 
 function SectionLabel({ text }: { text: string }) {
   return (
@@ -20,21 +21,9 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-// TODO: replace these placeholder names with the real certificate titles
-const certificates = [
-  { id: 1, name: '3rd Duan Wei Wushu Certification' },
-  { id: 2, name: '3rd Duan Wei Taijiquan Certificate' },
-  { id: 3, name: 'Addis Abeba Youth & Sport Bureau Certificate' },
-  { id: 4, name: '5th Duan Wei Chanquan Certificate' },
-  { id: 5, name: 'Black Belt Certificate' },
-  { id: 6, name: 'Sifu of Nunchaku Certificate' },
-  { id: 7, name: 'Ethiopian Wushu Federation Coaches Certificate' },
-  { id: 8, name: 'International Wushu Innovation Training Certificate' },
-];
-
-export default function CertificatesRecognition() {
-  const [openCert, setOpenCert] = useState<number | null>(null);
-  const active = certificates.find((c) => c.id === openCert);
+export default function CertificatesRecognition({ content }: { content: AboutContent }) {
+  const [openCertId, setOpenCertId] = useState<string | null>(null);
+  const active = content.certificates.find((c) => c.id === openCertId);
 
   return (
     <>
@@ -116,35 +105,35 @@ export default function CertificatesRecognition() {
           </div>
 
           <div className="cert-grid">
-            {certificates.map((cert) => (
+            {content.certificates.map((cert: Certificate) => (
               <div
                 key={cert.id}
                 className="cert-card"
-                onClick={() => setOpenCert(cert.id)}
+                onClick={() => setOpenCertId(cert.id)}
               >
                 <div className="cert-image-wrap">
                   <Image
-                    src={`/images/certificate-${cert.id}.jpg`}
-                    alt={cert.name}
+                    src={cert.url}
+                    alt={cert.caption}
                     fill
+                    sizes="(max-width: 480px) 100vw, (max-width: 900px) 50vw, 260px"
                     style={{ objectFit: 'contain' }}
                   />
                 </div>
                 <div className="cert-caption">
-                  <p>{cert.name}</p>
+                  <p>{cert.caption}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          
         </div>
       </section>
 
       {/* Lightbox */}
       {active && (
         <div
-          onClick={() => setOpenCert(null)}
+          onClick={() => setOpenCertId(null)}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -156,9 +145,10 @@ export default function CertificatesRecognition() {
             style={{ position: 'relative', width: '100%', maxWidth: 700, aspectRatio: '4/3' }}
           >
             <Image
-              src={`/images/certificate-${active.id}.jpg`}
-              alt={active.name}
+              src={active.url}
+              alt={active.caption}
               fill
+              sizes="(max-width: 700px) 100vw, 700px"
               style={{ objectFit: 'contain' }}
             />
           </div>
@@ -166,10 +156,10 @@ export default function CertificatesRecognition() {
             fontFamily: 'Inter, sans-serif', color: 'rgba(255,255,255,0.8)',
             fontSize: 14, textAlign: 'center',
           }}>
-            {active.name}
+            {active.caption}
           </p>
           <button
-            onClick={() => setOpenCert(null)}
+            onClick={() => setOpenCertId(null)}
             style={{
               background: 'none', border: 'none', color: '#C9A84C',
               fontSize: 13, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
