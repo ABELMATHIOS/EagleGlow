@@ -7,28 +7,20 @@ import ContactPreview from "@/src/components/home/ContactPreview";
 import { getClasses } from "@/src/lib/classes";
 import { getHomeContent } from "@/src/lib/home-content";
 import { getMomentPhotos } from "@/src/lib/gallery";
-import { createClient } from "@/src/lib/supabase/server";
+import { getAboutContent } from "@/src/lib/about-content";
 
 export default async function Home() {
-  const supabase = await createClient();
-
-  const [classes, home, momentPhotos, aboutResult] = await Promise.all([
+  const [classes, home, momentPhotos, about] = await Promise.all([
     getClasses(),
     getHomeContent(),
     getMomentPhotos(4),
-    supabase
-      .from('about_content')
-      .select('master_photo_url')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
-      .single(),
+    getAboutContent(),
   ]);
-
-  const masterPhotoUrl = aboutResult.data?.master_photo_url ?? null;
 
   return (
     <>
       <HeroSection videoUrl={home.heroVideoUrl} />
-      <OurStory photoUrl={masterPhotoUrl} />
+      <OurStory photoUrl={about.masterPhotoUrl} />
       <OurMoments photos={momentPhotos} />
       <OurProgram />
       <SchedulePreview classes={classes} />

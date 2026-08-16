@@ -2,24 +2,27 @@
 
 import { useState, useRef, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { BELTS, getBeltById } from "@/src/data/belts";
+import type { Belt } from "@/src/types";
 import { createClient } from "@/src/lib/supabase/client";
+import { uploadProfilePhoto, deleteProfilePhoto } from "@/src/lib/profile-upload";
 import type { CurrentUserProfile } from "@/src/lib/get-profile";
 
 type ProfileProps = {
   user: CurrentUserProfile;
+  belts: Belt[];
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/; // starts with + or a digit, at least 7 more digits/spaces/dashes
 
-export default function ProfilePage({ user }: ProfileProps) {
+export default function ProfilePage({ user, belts }: ProfileProps) {
   const router = useRouter();
 
   // Real member data, passed in from app/profile/page.tsx (a Server
   // Component that fetches it via getCurrentUserProfile()). Replaces the
   // old CURRENT_USER mock import — MEMBER keeps the same shape as before so
   // everything below this line works unchanged.
+  const lowestBeltOrder = Math.min(...belts.map((b) => b.order));
   const MEMBER = {
     name: user.name,
     email: user.email,
@@ -28,7 +31,7 @@ export default function ProfilePage({ user }: ProfileProps) {
     emergencyPhone: user.emergencyContactPhone,
     healthNotes: user.healthNotes,
     joinDate: new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }),
-    beltOrder: getBeltById(user.beltId ?? "belt-1")!.order,
+    beltOrder: belts.find((b) => b.id === user.beltId)?.order ?? lowestBeltOrder,
     avatar: user.photoUrl ?? null,
   };
 
@@ -49,10 +52,12 @@ export default function ProfilePage({ user }: ProfileProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [correctionSaving, setCorrectionSaving] = useState(false);
   const [correctionError, setCorrectionError] = useState<string | null>(null);
- const currentBelt = BELTS.find((b) => b.order === MEMBER.beltOrder)!;
-  const nextBelt = BELTS.find((b) => b.order === MEMBER.beltOrder + 1);
+ const currentBelt = belts.find((b) => b.order === MEMBER.beltOrder) ?? belts[0];
+  const nextBelt = belts.find((b) => b.order === MEMBER.beltOrder + 1);
 
   const emailValid = EMAIL_RE.test(draft.email);
   const phoneValid = PHONE_RE.test(draft.phone);
@@ -67,8 +72,16 @@ export default function ProfilePage({ user }: ProfileProps) {
   };
 
   const cancelEditing = () => {
+    // If a new photo was uploaded this editing session but never saved,
+    // clean it up rather than leaving it orphaned in storage forever.
+    if (draft.avatar && draft.avatar !== saved.avatar) {
+      deleteProfilePhoto(draft.avatar).catch((err) => {
+        console.error("Failed to clean up discarded avatar upload:", err);
+      });
+    }
     setDraft(saved);
     setSaveError(null);
+    setPhotoUploadError(null);
     setEditing(false);
   };
 
@@ -86,10 +99,16 @@ export default function ProfilePage({ user }: ProfileProps) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Failed to save profile");
       }
+      const previousAvatar = saved.avatar;
       setSaved(draft);
       setEditing(false);
       setProfileSaveSuccess(true);
       setTimeout(() => setProfileSaveSuccess(false), 2500);
+      if (previousAvatar && draft.avatar !== previousAvatar) {
+        deleteProfilePhoto(previousAvatar).catch((err) => {
+          console.error("Failed to clean up replaced avatar:", err);
+        });
+      }
       router.refresh(); // re-pulls the server-fetched user so the page reflects the DB
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to save profile");
@@ -99,12 +118,34 @@ export default function ProfilePage({ user }: ProfileProps) {
   };
 
   const handlePhotoClick = () => {
-    if (editing) fileInputRef.current?.click();
+    if (editing && !uploadingPhoto) fileInputRef.current?.click();
   };
 
-  const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setDraft(d => ({ ...d, avatar: URL.createObjectURL(file) }));
+    if (!file) return;
+    setUploadingPhoto(true);
+    setPhotoUploadError(null);
+    try {
+      const oldUrl = draft.avatar;
+      const url = await uploadProfilePhoto(file);
+      setDraft(d => ({ ...d, avatar: url }));
+      // Only clean up the old file once it's actually been superseded in
+      // the draft — if oldUrl came from `saved` (the committed photo) we
+      // leave it alone here; it only gets cleaned up once Save persists
+      // the new one, same "harmless orphan until replaced" convention
+      // used for Gallery/About uploads.
+      if (oldUrl && oldUrl !== saved.avatar) {
+        deleteProfilePhoto(oldUrl).catch((err) => {
+          console.error("Failed to clean up previous avatar upload:", err);
+        });
+      }
+    } catch (err) {
+      setPhotoUploadError(err instanceof Error ? err.message : "Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   // ── Password change (separate flow from profile editing) ──
@@ -431,15 +472,15 @@ export default function ProfilePage({ user }: ProfileProps) {
             {editing && (
               <div
                 onClick={handlePhotoClick}
-                title="Change photo"
+                title={uploadingPhoto ? "Uploading..." : "Change photo"}
                 style={{
                   position: "absolute", inset: 0, borderRadius: "50%",
                   background: "rgba(0,0,0,0.55)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", fontSize: "20px",
+                  cursor: uploadingPhoto ? "not-allowed" : "pointer", fontSize: "20px",
                 }}
               >
-                📷
+                {uploadingPhoto ? "…" : "📷"}
               </div>
             )}
             <input
@@ -533,7 +574,7 @@ export default function ProfilePage({ user }: ProfileProps) {
                 scrollSnapType: "x proximity",
               }}
             >
-              {BELTS.map((belt, i) => {
+              {belts.map((belt, i) => {
                 const isAchieved = belt.order <= MEMBER.beltOrder;
                 const isCurrent = belt.order === MEMBER.beltOrder;
                 return (
@@ -569,7 +610,7 @@ export default function ProfilePage({ user }: ProfileProps) {
                         <span style={{ fontSize: "12px", color: "#444" }}>{belt.order}</span>
                       )}
                     </div>
-                    {i < BELTS.length - 1 && (
+                    {i < belts.length - 1 && (
                       <div style={{
                         width: "24px", height: "2px", flexShrink: 0,
                         background: belt.order < MEMBER.beltOrder
@@ -623,6 +664,9 @@ export default function ProfilePage({ user }: ProfileProps) {
           )}
           {saveError && (
             <p className="field-error" style={{ marginBottom: "20px" }}>{saveError}</p>
+          )}
+          {photoUploadError && (
+            <p className="field-error" style={{ marginBottom: "20px" }}>{photoUploadError}</p>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px" }}>

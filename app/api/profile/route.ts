@@ -16,7 +16,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, phone, emergencyName, emergencyPhone, healthNotes } = body;
+    const { email, phone, emergencyName, emergencyPhone, healthNotes, avatar } = body;
 
     if (typeof email !== "string" || !EMAIL_RE.test(email)) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
@@ -26,6 +26,9 @@ export async function PUT(request: NextRequest) {
     }
     if (typeof emergencyPhone !== "string" || !PHONE_RE.test(emergencyPhone)) {
       return NextResponse.json({ error: "Invalid emergency phone" }, { status: 400 });
+    }
+    if (avatar !== null && avatar !== undefined && typeof avatar !== "string") {
+      return NextResponse.json({ error: "Invalid photo" }, { status: 400 });
     }
 
     // NOTE: this only updates the `users` table row, not Supabase Auth's
@@ -39,6 +42,7 @@ export async function PUT(request: NextRequest) {
         emergency_contact_name: emergencyName ?? "",
         emergency_contact_phone: emergencyPhone,
         health_notes: healthNotes ?? "",
+        photo_url: avatar ?? null,
       })
       .eq("id", user.id)
       .select()

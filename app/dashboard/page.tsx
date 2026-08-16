@@ -29,6 +29,7 @@ export default async function DashboardPage() {
         createdAt: user.createdAt,
       }}
       progress={progress}
+      belts={belts}
     />
   );
 }

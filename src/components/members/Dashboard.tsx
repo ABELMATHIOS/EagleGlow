@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Status } from '@/src/types';
-import { BELTS } from '@/src/data/belts';
+import { Status, Belt } from '@/src/types';
 
-// Real user data now comes in as a prop from app/dashboard/page.tsx (a
-// Server Component that fetches it via getCurrentUser()). This component
-// stays a client component for styling/interactivity, but no longer
-// imports mock data itself.
+// Real user data comes in as a prop from app/dashboard/page.tsx (a Server
+// Component that fetches it via getCurrentUser()). `belts` is likewise a
+// real prop (from getBelts()) — this component previously looked belts up
+// via the mock src/data/belts.ts, whose fake ids ("belt-1"..) never matched
+// a real member's beltId (a genuine Supabase UUID), so every member showed
+// as White belt regardless of their actual level.
 type DashboardUser = {
   name: string;
   beltId?: string;
@@ -57,9 +58,9 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function Dashboard({ user, progress }: { user: DashboardUser; progress: DashboardProgress }) {
+export default function Dashboard({ user, progress, belts }: { user: DashboardUser; progress: DashboardProgress; belts: Belt[] }) {
   const firstName = user.name.split(' ')[0];
-  const currentBelt = BELTS.find((b) => b.id === user.beltId) ?? BELTS[0];
+  const currentBelt = belts.find((b) => b.id === user.beltId) ?? belts[0];
   const joinDate = new Date(user.createdAt).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',

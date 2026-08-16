@@ -69,21 +69,18 @@ export async function getAllAlbums(): Promise<GalleryAlbum[]> {
 }
 
 
+// Home page "Our Moments" preview — reuses getPublishedAlbums() rather
+// than running a second, near-identical query against the same table.
 export async function getMomentPhotos(limit = 4): Promise<{ src: string; alt: string }[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('albums')
-    .select('title, preview_urls, created_at')
-    .eq('published', true)
-    .order('created_at', { ascending: false });
-
-  if (error || !data) {
+  let albums: GalleryAlbum[];
+  try {
+    albums = await getPublishedAlbums();
+  } catch (error) {
     console.error('Failed to fetch moment photos:', error);
     return [];
   }
 
-  return data
-    .flatMap((album) => (album.preview_urls ?? []).map((src: string) => ({ src, alt: album.title })))
+  return albums
+    .flatMap((album) => album.previews.map((src) => ({ src, alt: album.title })))
     .slice(0, limit);
 }

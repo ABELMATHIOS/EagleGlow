@@ -28,6 +28,7 @@ export default async function TutorialDetailPage({ params }: { params: Promise<{
   return (
     <TutorialDetail
       belt={slug}
+      belts={belts}
       tutorials={tutorials}
       currentUserId={currentUser?.id ?? null}
       completedTutorialIds={Array.from(completedIds)}

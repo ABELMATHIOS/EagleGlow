@@ -1,7 +1,7 @@
 import { createClient } from '@/src/lib/supabase/server';
 
 export async function getHomeContent() {
-  const supabase = await createClient();   // ← add await here
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('home_content')
     .select('hero_video_url')

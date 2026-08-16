@@ -3,8 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import type { Tutorial as DbTutorial } from '@/src/types';
-import { BELTS as SHARED_BELTS, getBeltById } from '@/src/data/belts';
+import type { Tutorial as DbTutorial, Belt } from '@/src/types';
 import { markTutorialComplete, markTutorialIncomplete } from '@/src/lib/tutorial-progress-client';
 
 /* ============================================================
@@ -24,10 +23,6 @@ type Tutorial = {
   category: Category;
   videoId?: string;
 };
-
-const BELTS: Record<BeltId, { name: string; color: string }> = Object.fromEntries(
-  SHARED_BELTS.map((b) => [b.slug, { name: b.name, color: b.slug === 'black' ? '#3A3A3A' : b.color }])
-) as Record<BeltId, { name: string; color: string }>;
 
 const CATEGORY_LABEL: Record<Category, string> = {
   taolu:       'Taolu / Forms',
@@ -333,12 +328,20 @@ function TutorialRow({
 
 type TutorialDetailProps = {
   belt: string;
+  belts: Belt[]; // real Supabase belts — used to resolve tutorial.beltId (a real FK) to a slug
   tutorials: DbTutorial[]; // real Supabase published tutorials
   currentUserId: string | null; // null if not logged in — disables mark-complete
   completedTutorialIds: string[]; // real progress from tutorial_progress table
 };
 
-export default function TutorialDetail({ belt, tutorials: dbTutorials, currentUserId, completedTutorialIds }: TutorialDetailProps) {
+export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, currentUserId, completedTutorialIds }: TutorialDetailProps) {
+  // Built from the real belts prop, not the old mock file — was previously
+  // keyed off src/data/belts.ts, whose slugs happened to line up for THIS
+  // lookup, but whose ids never matched a real tutorial.beltId FK below.
+  const BELTS = useMemo(() => Object.fromEntries(
+    belts.map((b) => [b.slug, { name: b.name, color: b.slug === 'black' ? '#3A3A3A' : b.color }])
+  ) as Record<BeltId, { name: string; color: string }>, [belts]);
+
   const beltId = (belt in BELTS ? belt : null) as BeltId | null;
   const beltMeta = beltId ? BELTS[beltId] : { name: 'Unknown', color: '#C9A84C' };
 
@@ -346,7 +349,11 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials, currentUs
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const TUTORIALS: Tutorial[] = useMemo(() => dbTutorials.map((t) => {
-    const beltSlug = getBeltById(t.beltId)?.slug as BeltId | undefined;
+    // Was: getBeltById(t.beltId) against the mock file — t.beltId is a real
+    // Supabase UUID, which never matched a mock "belt-1".."belt-7" id, so
+    // every real tutorial silently fell back to 'white' here, meaning
+    // belt-specific tutorial lists were effectively broken for every belt.
+    const beltSlug = belts.find((b) => b.id === t.beltId)?.slug as BeltId | undefined;
     const videoId = t.videoUrl ? t.videoUrl.split('v=')[1] : undefined;
     return {
       id: t.id,
@@ -358,7 +365,7 @@ export default function TutorialDetail({ belt, tutorials: dbTutorials, currentUs
       category: t.category as Category,
       videoId,
     };
-  }), [dbTutorials, completedIds]);
+  }), [dbTutorials, completedIds, belts]);
 
   const tutorialsForBelt = beltId ? TUTORIALS.filter((t) => t.belt === beltId) : [];
   const requirements = beltId ? GRADING_REQUIREMENTS[beltId] : [];
