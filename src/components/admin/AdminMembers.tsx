@@ -112,6 +112,17 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
   const beltById = new Map(belts.map((b) => [b.id, b]));
   const beltByName = new Map(belts.map((b) => [b.name, b]));
 
+  // Mirrors the exact logic app/api/admin/users/[id]/approve/route.ts uses
+  // to auto-assign a belt on approval — so a pending applicant's "Belt" row
+  // shows the truth (what they'll actually get) instead of always showing
+  // White, which is just beltId's null-fallback and was misleading admins
+  // into thinking White was their real/current status.
+  function beltForPendingMember(m: Member): Belt | undefined {
+    const isReturning = m.registrationType === 'training' || m.registrationType === 'returning';
+    const matched = isReturning ? beltByName.get(m.previousBelt) : undefined;
+    return matched ?? belts[0];
+  }
+
   // Real: calls PATCH /api/admin/users/[id]/belt. Mirrors approveMember's
   // loading/error pattern below.
   const [promotingSave, setPromotingSave] = useState<string | null>(null); // member id currently saving
@@ -612,11 +623,13 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <span style={{
                         width: 8, height: 8, borderRadius: '50%',
-                        background: beltByName.get(m.belt)?.color,
+                        background: m.status === 'pending'
+                          ? beltForPendingMember(m)?.color
+                          : beltByName.get(m.belt)?.color,
                         border: m.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
                         flexShrink: 0,
                       }} />
-                      {m.belt}
+                      {m.status === 'pending' ? (beltForPendingMember(m)?.name ?? m.belt) : m.belt}
                     </span>
                   </td>
                   <td>
@@ -725,14 +738,18 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
 
              {/* Belt */}
               <div className="detail-row" style={{ alignItems: 'center', marginBottom: 12 }}>
-                <span>Belt</span>
+                <span>{selectedMember.status === 'pending' ? 'Belt (on approval)' : 'Belt'}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                   <span style={{
                     width: 10, height: 10, borderRadius: '50%',
-                    background: beltByName.get(selectedMember.belt)?.color,
+                    background: selectedMember.status === 'pending'
+                      ? beltForPendingMember(selectedMember)?.color
+                      : beltByName.get(selectedMember.belt)?.color,
                     border: selectedMember.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
                   }} />
-                  {selectedMember.belt}
+                  {selectedMember.status === 'pending'
+                    ? (beltForPendingMember(selectedMember)?.name ?? selectedMember.belt)
+                    : selectedMember.belt}
                 </span>
               </div>
 
