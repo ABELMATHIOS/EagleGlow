@@ -42,9 +42,42 @@ export async function POST(
     }
 
     const adminSupabase = createAdminClient();
+
+    // Determine the belt to assign on approval, so a returning/training
+    // member's self-reported belt takes effect immediately rather than
+    // requiring the admin to separately remember to use "Promote Belt"
+    // after approving. Only applied if the member doesn't already have a
+    // belt_id set (e.g. re-approving someone shouldn't reset a belt an
+    // admin has since adjusted by hand).
+    const { data: target } = await adminSupabase
+      .from("users")
+      .select("registration_type, previous_belt, belt_id")
+      .eq("id", targetUserId)
+      .single();
+
+    const update: Record<string, unknown> = { status: "active", role: "member" };
+
+    if (target && !target.belt_id) {
+      const { data: belts } = await adminSupabase
+        .from("belts")
+        .select("id, name, order")
+        .order("order", { ascending: true });
+
+      if (belts && belts.length > 0) {
+        const lowestBelt = belts[0]; // order ascending, so [0] = White
+        const isReturning =
+          target.registration_type === "training" || target.registration_type === "returning";
+        const matchedBelt = isReturning
+          ? belts.find((b) => b.name === target.previous_belt)
+          : undefined;
+
+        update.belt_id = (matchedBelt ?? lowestBelt).id;
+      }
+    }
+
     const { data, error } = await adminSupabase
       .from("users")
-      .update({ status: "active", role: "member" })
+      .update(update)
       .eq("id", targetUserId)
       .select()
       .single();

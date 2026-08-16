@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/src/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
-const MEMBER_ROUTES = ["/dashboard", "/profile"];
+const MEMBER_ROUTES = ["/dashboard", "/profile", "/tutorials"];
 const ADMIN_ROUTES = ["/admin"];
 const PROTECTED_ROUTES = [...MEMBER_ROUTES, ...ADMIN_ROUTES];
 
@@ -65,5 +65,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*", "/profile/:path*"],
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/profile/:path*", "/tutorials/:path*"],
 };

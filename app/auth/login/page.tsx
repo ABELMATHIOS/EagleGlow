@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import Login from '@/src/components/auth/Login';
 
-export default function RegisterPage() {
+export default function LoginPage() {
   return (
     <Suspense fallback={null}>
       <Login />
