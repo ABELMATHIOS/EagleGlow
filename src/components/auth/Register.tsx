@@ -45,7 +45,31 @@ export default function Register() {
 
   const passwordValid = form.password.length >= 8;
   const passwordsMatch = form.confirmPassword.length > 0 && form.password === form.confirmPassword;
-  const canSubmit = agreed && passwordValid && passwordsMatch && submitStatus !== 'submitting';
+  const isReturningOrTraining = form.registrationType === 'training' || form.registrationType === 'returning';
+  const yearJoinedValid = !isReturningOrTraining || form.yearJoined !== '';
+  const previousBeltValid = !isReturningOrTraining || form.previousBelt !== '';
+
+  // Required for everyone: everything except Health/Medical Notes (always
+  // optional) and Gap Reason (optional, returning-only).
+  const requiredFieldsFilled =
+    form.fullName.trim() !== '' &&
+    form.email.trim() !== '' &&
+    form.phone.trim() !== '' &&
+    form.dateOfBirth !== '' &&
+    form.sex !== '' &&
+    form.heightCm !== '' &&
+    form.weightKg !== '' &&
+    form.emergencyName.trim() !== '' &&
+    form.emergencyPhone.trim() !== '';
+
+  const canSubmit =
+    agreed &&
+    passwordValid &&
+    passwordsMatch &&
+    yearJoinedValid &&
+    previousBeltValid &&
+    requiredFieldsFilled &&
+    submitStatus !== 'submitting';
 
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -73,7 +97,10 @@ export default function Register() {
         healthNotes: form.healthNotes,
         registrationType: form.registrationType,
         previousBelt: form.previousBelt,
-        yearJoined: form.yearJoined,
+        // New members aren't asked this on the form (the field only shows
+        // for training/returning) — default it to today's year so every
+        // member row has a real join year, not an empty one.
+        yearJoined: form.registrationType === 'new' ? String(CURRENT_YEAR) : form.yearJoined,
         gapReason: form.gapReason,
       });
       setSubmitStatus('idle');
@@ -453,11 +480,12 @@ export default function Register() {
                         fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                         color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                         textTransform: 'uppercase',
-                      }}>Current / Previous Belt</label>
+                      }}>Current / Previous Belt <span style={{ color: '#E74C3C' }}>*</span></label>
                       <select
                         className="reg-select"
                         value={form.previousBelt}
                         onChange={(e) => handleChange('previousBelt', e.target.value)}
+                        required
                       >
                         <option value="">Select a belt</option>
                         {BELT_OPTIONS.map((belt) => (
@@ -471,11 +499,12 @@ export default function Register() {
                         fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                         color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                         textTransform: 'uppercase',
-                      }}>Year You Joined EagleGlow</label>
+                      }}>Year You Joined EagleGlow <span style={{ color: '#E74C3C' }}>*</span></label>
                       <select
                         className="reg-select"
                         value={form.yearJoined}
                         onChange={(e) => handleChange('yearJoined', e.target.value)}
+                        required
                       >
                         <option value="">Select a year</option>
                         {YEAR_OPTIONS.map((year) => (
@@ -512,7 +541,7 @@ export default function Register() {
                     fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                     color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                  }}>Full Name</label>
+                  }}>Full Name <span style={{ color: '#E74C3C' }}>*</span></label>
                   <input
                     className="reg-input"
                     type="text"
@@ -529,7 +558,7 @@ export default function Register() {
                     fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                     color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                  }}>Email</label>
+                  }}>Email <span style={{ color: '#E74C3C' }}>*</span></label>
                   <input
                     className="reg-input"
                     type="email"
@@ -540,14 +569,14 @@ export default function Register() {
                   />
                 </div>
 
-                {/* Phone (optional) */}
+                {/* Phone */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <label style={{
                     fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                     color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                     textTransform: 'uppercase',
                   }}>
-                    Phone
+                    Phone <span style={{ color: '#E74C3C' }}>*</span>
                   </label>
                   <input
                     className="reg-input"
@@ -567,7 +596,7 @@ export default function Register() {
                     color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                     textTransform: 'uppercase',
                   }}>
-                    Date of Birth
+                    Date of Birth <span style={{ color: '#E74C3C' }}>*</span>
                   </label>
                   <input
                     className="reg-input"
@@ -585,7 +614,7 @@ export default function Register() {
                     color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                     textTransform: 'uppercase',
                   }}>
-                    Sex
+                    Sex <span style={{ color: '#E74C3C' }}>*</span>
                   </label>
                   <select
                     className="reg-input"
@@ -599,7 +628,7 @@ export default function Register() {
                   </select>
                 </div>
 
-                {/* Height & Weight (optional) */}
+                {/* Height & Weight */}
                 <div style={{ display: 'flex', gap: 12 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
                     <label style={{
@@ -607,7 +636,7 @@ export default function Register() {
                       color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                       textTransform: 'uppercase',
                     }}>
-                      Height (cm)
+                      Height (cm) <span style={{ color: '#E74C3C' }}>*</span>
                     </label>
                     <input
                       className="reg-input"
@@ -616,6 +645,7 @@ export default function Register() {
                       placeholder="170"
                       value={form.heightCm}
                       onChange={(e) => handleChange('heightCm', e.target.value)}
+                      required
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
@@ -624,7 +654,7 @@ export default function Register() {
                       color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                       textTransform: 'uppercase',
                     }}>
-                      Weight (kg)
+                      Weight (kg) <span style={{ color: '#E74C3C' }}>*</span>
                     </label>
                     <input
                       className="reg-input"
@@ -633,6 +663,7 @@ export default function Register() {
                       placeholder="65"
                       value={form.weightKg}
                       onChange={(e) => handleChange('weightKg', e.target.value)}
+                      required
                     />
                   </div>
                 </div>
@@ -645,7 +676,7 @@ export default function Register() {
                     fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                     color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                  }}>Emergency Contact Name</label>
+                  }}>Emergency Contact Name <span style={{ color: '#E74C3C' }}>*</span></label>
                   <input
                     className="reg-input"
                     type="text"
@@ -663,7 +694,7 @@ export default function Register() {
                     fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                     color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                  }}>Emergency Contact Phone</label>
+                  }}>Emergency Contact Phone <span style={{ color: '#E74C3C' }}>*</span></label>
                   <input
                     className="reg-input"
                     type="tel"

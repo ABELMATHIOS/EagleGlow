@@ -31,6 +31,7 @@ type Member = {
   belt: string;
   status: Status;
   registeredAt: string;
+  photoUrl: string;
 };
 
 type AdminMembersProps = {
@@ -65,6 +66,7 @@ function toMembers(users: User[], belts: Belt[]): Member[] {
       belt: belt?.name ?? 'White',
       status: u.status,
       registeredAt: u.createdAt,
+      photoUrl: u.photoUrl ?? '',
     };
   });
 }
@@ -94,7 +96,7 @@ const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Email',                   get: (m) => m.email },
   { header: 'Phone',                   get: (m) => m.phone },
   { header: 'Current Belt',            get: (m) => m.belt },
-  { header: 'Year Joined (if known)',  get: (m) => m.yearJoined },
+  { header: 'Year Joined',             get: (m) => m.yearJoined },
   { header: 'Emergency Contact Name',  get: (m) => m.emergencyName },
   { header: 'Emergency Contact Phone', get: (m) => m.emergencyPhone },
   { header: 'Health / Medical Notes',  get: (m) => m.healthNotes },
@@ -310,30 +312,80 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     URL.revokeObjectURL(url);
   };
 
- const handleExportPDF = () => {
+ const [exportingPDF, setExportingPDF] = useState(false);
+
+ const handleExportPDF = async () => {
     if (filtered.length === 0) return;
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const doc = new jsPDF({ orientation: 'landscape' });
+    setExportingPDF(true);
+    try {
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const doc = new jsPDF({ orientation: 'landscape' });
 
-    doc.setFontSize(16);
-    doc.setTextColor(20, 20, 20);
-    doc.text('EagleGlow Members', 14, 16);
+      doc.setFontSize(16);
+      doc.setTextColor(20, 20, 20);
+      doc.text('EagleGlow Members', 14, 16);
 
-    doc.setFontSize(10);
-    doc.setTextColor(120, 120, 120);
-    doc.text(`Generated ${dateStr} — ${filtered.length} members`, 14, 22);
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Generated ${dateStr} — ${filtered.length} members`, 14, 22);
 
-    autoTable(doc, {
-      startY: 28,
-      head: [CSV_COLUMNS.map((c) => c.header)],
-      body: filtered.map((m) => CSV_COLUMNS.map((c) => c.get(m) || '—')),
-      styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak' },
-      headStyles: { fillColor: [201, 168, 76], textColor: [17, 17, 17], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-      columnStyles: { 7: { cellWidth: 55 } }, // Health / Medical Notes column — give it room to wrap
-    });
+      // Pre-fetch each member's photo as a base64 data URL up front, since
+      // autoTable's didDrawCell hook below runs synchronously and can't
+      // await a fetch mid-render. Members without a photo (or a failed
+      // fetch) simply get a blank photo cell — never blocks the export.
+      const photoDataUrls = await Promise.all(
+        filtered.map(async (m) => {
+          if (!m.photoUrl) return null;
+          try {
+            const res = await fetch(m.photoUrl);
+            const blob = await res.blob();
+            return await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (err) {
+            console.error(`Failed to load photo for PDF export (${m.fullName}):`, err);
+            return null;
+          }
+        })
+      );
 
-    doc.save(`eagleglow-members-${dateStr}.pdf`);
+      const PHOTO_COL_WIDTH = 16;
+
+      autoTable(doc, {
+        startY: 28,
+        head: [['Photo', ...CSV_COLUMNS.map((c) => c.header)]],
+        body: filtered.map((m) => ['', ...CSV_COLUMNS.map((c) => c.get(m) || '—')]),
+        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak', minCellHeight: 16 },
+        headStyles: { fillColor: [201, 168, 76], textColor: [17, 17, 17], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        columnStyles: {
+          0: { cellWidth: PHOTO_COL_WIDTH },
+          8: { cellWidth: 55 }, // Health / Medical Notes — shifted +1 for the new Photo column
+        },
+        didDrawCell: (data) => {
+          if (data.column.index === 0 && data.cell.section === 'body') {
+            const dataUrl = photoDataUrls[data.row.index];
+            if (dataUrl) {
+              const size = 12;
+              const x = data.cell.x + (data.cell.width - size) / 2;
+              const y = data.cell.y + (data.cell.height - size) / 2;
+              try {
+                doc.addImage(dataUrl, x, y, size, size);
+              } catch (err) {
+                console.error(`Failed to draw photo in PDF for row ${data.row.index}:`, err);
+              }
+            }
+          }
+        },
+      });
+
+      doc.save(`eagleglow-members-${dateStr}.pdf`);
+    } finally {
+      setExportingPDF(false);
+    }
   };
 
   const pendingCorrectionCount = members.filter((m) => m.nameCorrectionRequest).length;
@@ -538,8 +590,8 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="admin-btn-ghost" onClick={handleExportPDF}>
-            🖨 Export as PDF
+          <button className="admin-btn-ghost" onClick={handleExportPDF} disabled={exportingPDF}>
+            {exportingPDF ? 'Generating…' : '🖨 Export as PDF'}
           </button>
           <button className="admin-btn-gold" onClick={handleExport}>
             ⬇ Export to CSV
