@@ -32,6 +32,10 @@ type Member = {
   status: Status;
   registeredAt: string;
   photoUrl: string;
+  dateOfBirth: string;
+  sex: string;
+  heightCm: string;
+  weightKg: string;
 };
 
 type AdminMembersProps = {
@@ -67,6 +71,10 @@ function toMembers(users: User[], belts: Belt[]): Member[] {
       status: u.status,
       registeredAt: u.createdAt,
       photoUrl: u.photoUrl ?? '',
+      dateOfBirth: u.dateOfBirth ?? '',
+      sex: u.sex ?? '',
+      heightCm: u.heightCm != null ? String(u.heightCm) : '',
+      weightKg: u.weightKg != null ? String(u.weightKg) : '',
     };
   });
 }
@@ -76,6 +84,15 @@ const registrationTypeLabel: Record<Member['registrationType'], string> = {
   training: 'Currently Training',
   returning: 'Returning',
 };
+
+// jsPDF's setFillColor needs RGB integers, not a hex string like belt.color.
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16) || 0;
+  const g = parseInt(clean.substring(2, 4), 16) || 0;
+  const b = parseInt(clean.substring(4, 6), 16) || 0;
+  return [r, g, b];
+}
 
 const STATUS_COLORS: Record<Member['status'], string> = {
   pending:   '#E74C3C',
@@ -373,7 +390,12 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
               const x = data.cell.x + (data.cell.width - size) / 2;
               const y = data.cell.y + (data.cell.height - size) / 2;
               try {
-                doc.addImage(dataUrl, x, y, size, size);
+                // addImage requires an explicit format ('JPEG'/'PNG'/etc) —
+                // without it, jsPDF misreads the x-coordinate argument as
+                // the format string and silently fails to draw anything.
+                const match = dataUrl.match(/^data:image\/(\w+);/);
+                const format = (match?.[1] ?? 'JPEG').toUpperCase();
+                doc.addImage(dataUrl, format, x, y, size, size);
               } catch (err) {
                 console.error(`Failed to draw photo in PDF for row ${data.row.index}:`, err);
               }
@@ -385,6 +407,160 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
       doc.save(`eagleglow-members-${dateStr}.pdf`);
     } finally {
       setExportingPDF(false);
+    }
+  };
+
+  const [exportingProfiles, setExportingProfiles] = useState(false);
+
+  // One PDF, one full page per member — for printing and filing individual
+  // physical records, as opposed to handleExportPDF's single roster table.
+  const handleExportProfileSheets = async () => {
+    if (filtered.length === 0) return;
+    setExportingProfiles(true);
+    try {
+      const dateStr = new Date().toISOString().slice(0, 10);
+
+      const photoDataUrls = await Promise.all(
+        filtered.map(async (m) => {
+          if (!m.photoUrl) return null;
+          try {
+            const res = await fetch(m.photoUrl);
+            const blob = await res.blob();
+            return await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (err) {
+            console.error(`Failed to load photo for profile sheet (${m.fullName}):`, err);
+            return null;
+          }
+        })
+      );
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 16;
+
+      filtered.forEach((m, i) => {
+        if (i > 0) doc.addPage();
+
+        const belt = beltByName.get(m.belt);
+
+        // Header bar
+        doc.setFillColor(201, 168, 76);
+        doc.rect(0, 0, pageWidth, 22, 'F');
+        doc.setFontSize(14);
+        doc.setTextColor(17, 17, 17);
+        doc.setFont('helvetica', 'bold');
+        doc.text('EagleGlow — Member Profile', margin, 14);
+
+        let y = 32;
+
+        // Photo box
+        const photoSize = 32;
+        doc.setDrawColor(220, 220, 220);
+        doc.rect(margin, y, photoSize, photoSize);
+        const dataUrl = photoDataUrls[i];
+        if (dataUrl) {
+          const match = dataUrl.match(/^data:image\/(\w+);/);
+          const format = (match?.[1] ?? 'JPEG').toUpperCase();
+          try {
+            doc.addImage(dataUrl, format, margin, y, photoSize, photoSize);
+          } catch (err) {
+            console.error(`Failed to draw photo for ${m.fullName}:`, err);
+          }
+        } else {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(180, 180, 180);
+          doc.text('No photo', margin + photoSize / 2, y + photoSize / 2, { align: 'center' });
+        }
+
+        // Name, belt, status — to the right of the photo
+        const textX = margin + photoSize + 10;
+        doc.setFontSize(18);
+        doc.setTextColor(20, 20, 20);
+        doc.setFont('helvetica', 'bold');
+        doc.text(m.fullName, textX, y + 8);
+
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+        if (belt) {
+          const [r, g, b] = hexToRgb(belt.color);
+          doc.setFillColor(r, g, b);
+          doc.circle(textX + 2, y + 16, 2, 'F');
+        }
+        doc.text(`${m.belt} Belt`, textX + 7, y + 17);
+
+        doc.setFontSize(10);
+        doc.text(`Status: ${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`, textX, y + 25);
+
+        y += photoSize + 14;
+
+        // Details — two-column key/value grid
+        const rows: [string, string][] = [
+          ['Email', m.email],
+          ['Phone', m.phone || '—'],
+          ['Date of Birth', m.dateOfBirth || '—'],
+          ['Sex', m.sex ? m.sex.charAt(0).toUpperCase() + m.sex.slice(1) : '—'],
+          ['Height', m.heightCm ? `${m.heightCm} cm` : '—'],
+          ['Weight', m.weightKg ? `${m.weightKg} kg` : '—'],
+          ['Emergency Contact', m.emergencyName || '—'],
+          ['Emergency Phone', m.emergencyPhone || '—'],
+          ['Registration Type', registrationTypeLabel[m.registrationType]],
+          ['Previous Belt', m.previousBelt || '—'],
+          ['Year Joined', m.yearJoined || '—'],
+          ['Registered On', new Date(m.registeredAt).toLocaleDateString('en-US')],
+        ];
+
+        const colWidth = (pageWidth - margin * 2) / 2;
+        rows.forEach(([label, value], idx) => {
+          const col = idx % 2;
+          const row = Math.floor(idx / 2);
+          const x = margin + col * colWidth;
+          const rowY = y + row * 10;
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(140, 140, 140);
+          doc.text(label.toUpperCase(), x, rowY);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(30, 30, 30);
+          doc.text(value, x, rowY + 5);
+        });
+
+        y += Math.ceil(rows.length / 2) * 10 + 10;
+
+        // Health notes — bordered box, kept visually distinct since it's
+        // safety-relevant info instructors need to notice at a glance.
+        const notesHeight = 30;
+        doc.setDrawColor(230, 180, 180);
+        doc.setFillColor(253, 245, 245);
+        doc.rect(margin, y, pageWidth - margin * 2, notesHeight, 'FD');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(180, 60, 60);
+        doc.text('HEALTH / MEDICAL NOTES', margin + 4, y + 7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 30, 30);
+        const notesText = m.healthNotes || 'None on file.';
+        const wrapped = doc.splitTextToSize(notesText, pageWidth - margin * 2 - 8);
+        doc.text(wrapped, margin + 4, y + 13);
+
+        // Footer
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Generated ${dateStr}`, margin, pageHeight - 10);
+      });
+
+      doc.save(`eagleglow-profile-sheets-${dateStr}.pdf`);
+    } finally {
+      setExportingProfiles(false);
     }
   };
 
@@ -592,6 +768,9 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="admin-btn-ghost" onClick={handleExportPDF} disabled={exportingPDF}>
             {exportingPDF ? 'Generating…' : '🖨 Export as PDF'}
+          </button>
+          <button className="admin-btn-ghost" onClick={handleExportProfileSheets} disabled={exportingProfiles}>
+            {exportingProfiles ? 'Generating…' : '🗂 Export Profile Sheets'}
           </button>
           <button className="admin-btn-gold" onClick={handleExport}>
             ⬇ Export to CSV
