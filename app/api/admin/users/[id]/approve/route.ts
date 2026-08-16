@@ -49,22 +49,30 @@ export async function POST(
     // after approving. Only applied if the member doesn't already have a
     // belt_id set (e.g. re-approving someone shouldn't reset a belt an
     // admin has since adjusted by hand).
-    const { data: target } = await adminSupabase
+    const { data: target, error: targetError } = await adminSupabase
       .from("users")
       .select("registration_type, previous_belt, belt_id")
       .eq("id", targetUserId)
       .single();
 
+    if (targetError) {
+      console.error("[approve route] Failed to fetch target user for belt assignment:", targetError);
+    }
+
     const update: Record<string, unknown> = { status: "active", role: "member" };
 
     if (target && !target.belt_id) {
-      const { data: belts } = await adminSupabase
+      const { data: belts, error: beltsError } = await adminSupabase
         .from("belts")
-        .select("id, name, order")
-        .order("order", { ascending: true });
+        .select("id, name, sort_order")
+        .order("sort_order", { ascending: true });
+
+      if (beltsError) {
+        console.error("[approve route] Failed to fetch belts for belt assignment:", beltsError);
+      }
 
       if (belts && belts.length > 0) {
-        const lowestBelt = belts[0]; // order ascending, so [0] = White
+        const lowestBelt = belts[0]; // sort_order ascending, so [0] = White
         const isReturning =
           target.registration_type === "training" || target.registration_type === "returning";
         const matchedBelt = isReturning
