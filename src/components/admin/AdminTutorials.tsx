@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Tutorial, TutorialCategory, Belt } from '@/src/types';
 import { createTutorial, updateTutorial, deleteTutorial as deleteTutorialAction } from '@/src/lib/admin-action';
+import TutorialsIndex from '@/src/components/members/TutorialsIndex'; // TODO: fix path to match your repo
+import TutorialDetail from '@/src/components/members/TutorialDetail'; // TODO: fix path to match your repo
 
 const CATEGORIES: TutorialCategory[] = ['general', 'taolu', 'kicks', 'sanda', 'gymnastics', 'flexibility'];
 
@@ -60,6 +62,12 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
   const [deletingId,    setDeletingId]    = useState<string | null>(null);
   const [togglingId,    setTogglingId]    = useState<string | null>(null);
 
+  // --- Preview mode: shows the real member-facing views using live data ---
+  const [previewing,          setPreviewing]          = useState(false);
+  const [previewIncludeDraft, setPreviewIncludeDraft] = useState(false);
+  // 'dashboard' = belt overview grid, or a belt slug = that belt's tutorial list
+  const [previewView, setPreviewView] = useState<'dashboard' | string>('dashboard');
+
   const rows = tutorials.map((t) => ({
     id: t.id,
     belt: beltById.get(t.beltId)?.name ?? 'Unknown',
@@ -71,6 +79,14 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
   const filtered = filterBelt === 'all' ? rows : rows.filter((t) => t.belt === filterBelt);
   const selectedTutorial = tutorials.find((t) => t.id === selected);
   const showForm = adding || Boolean(selectedTutorial);
+
+  // Every belt unlocked, so admins can preview all levels regardless of
+  // their own progress. Highest `order` value works for any belt scheme.
+  const maxBeltOrder = belts.reduce((max, b) => Math.max(max, b.order), 0);
+
+  const previewTutorials = previewIncludeDraft
+    ? tutorials
+    : tutorials.filter((t) => t.published);
 
   const startAdd = () => {
     setDraft(EMPTY_DRAFT);
@@ -164,6 +180,102 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
     } finally {
       setTogglingId(null);
     }
+  }
+
+  function openPreview() {
+    setPreviewView('dashboard');
+    setPreviewing(true);
+  }
+
+  // --- Preview overlay: renders the real member views on top of admin ---
+  if (previewing) {
+    return (
+      <>
+        <style>{`
+          .preview-tab {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 100px;
+            cursor: pointer;
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.55);
+          }
+          .preview-tab:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.85); }
+          .preview-tab.selected {
+            background: rgba(201,168,76,0.12);
+            border-color: rgba(201,168,76,0.4);
+            color: #C9A84C;
+          }
+        `}</style>
+
+        <div style={{
+          position: 'fixed', top: 16, left: 16, right: 16, zIndex: 1000,
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          background: '#111', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 12, padding: '10px 14px',
+        }}>
+          <button
+            className="admin-btn-gold"
+            style={{ padding: '8px 16px', flexShrink: 0 }}
+            onClick={() => setPreviewing(false)}
+          >
+            ← Back to Admin
+          </button>
+
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              className={`preview-tab${previewView === 'dashboard' ? ' selected' : ''}`}
+              onClick={() => setPreviewView('dashboard')}
+            >
+              Overview
+            </button>
+            {belts.map((b) => (
+              <button
+                key={b.slug}
+                className={`preview-tab${previewView === b.slug ? ' selected' : ''}`}
+                onClick={() => setPreviewView(b.slug)}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto',
+            fontFamily: 'Inter, sans-serif', fontSize: 12,
+            color: 'rgba(255,255,255,0.6)', flexShrink: 0,
+          }}>
+            <input
+              type="checkbox"
+              checked={previewIncludeDraft}
+              onChange={(e) => setPreviewIncludeDraft(e.target.checked)}
+            />
+            Include unpublished
+          </label>
+        </div>
+
+        {previewView === 'dashboard' ? (
+          <TutorialsIndex
+            tutorials={previewTutorials}
+            belts={belts}
+            userBeltOrder={maxBeltOrder}
+            completedTutorialIds={[]}
+          />
+        ) : (
+          <TutorialDetail
+            belt={previewView}
+            belts={belts}
+            tutorials={previewTutorials}
+            currentUserId={null}
+            completedTutorialIds={[]}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -345,7 +457,12 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
             {rows.length} videos · {rows.filter((t) => t.published).length} published
           </p>
         </div>
-        <button className="admin-btn-gold" onClick={startAdd}>+ Add Tutorial</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="admin-btn-ghost" onClick={openPreview}>
+            👁 Preview as Member
+          </button>
+          <button className="admin-btn-gold" onClick={startAdd}>+ Add Tutorial</button>
+        </div>
       </div>
 
       {/* Filter */}

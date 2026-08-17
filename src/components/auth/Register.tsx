@@ -3,15 +3,19 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BELTS } from '@/src/data/belts';
+
 import { signUp } from '@/src/lib/auth';
 
-const BELT_OPTIONS = BELTS.map((b) => b.name);
+
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => CURRENT_YEAR - i);
 
-export default function Register() {
+type RegisterProps = {
+  beltOptions: string[];
+};
+
+export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [logoError, setLogoError] = useState(false);
