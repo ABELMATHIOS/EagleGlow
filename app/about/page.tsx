@@ -4,6 +4,7 @@
 // passes it down as props, same pattern as app/admin/about/page.tsx.
 
 import type { Metadata } from 'next';
+import AboutHero from '@/src/components/about/AboutHero';
 import OurStory from '@/src/components/about/OurStory';
 import OurVisionMissionGoal from '@/src/components/about/OurVisionMissionGoal';
 import MeetOurMaster from '@/src/components/about/MeetOurMaster';
@@ -24,7 +25,7 @@ export default async function AboutPage() {
 
   return (
     <>
-      {/* existing hero banner / other sections stay as-is */}
+      <AboutHero />
       <OurStory content={content} />
       <OurVisionMissionGoal content={content} />
       <MeetOurMaster content={content} />

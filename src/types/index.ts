@@ -54,15 +54,6 @@ export interface User {
   createdAt:               string;
 }
 
-export interface MembershipHistory {
-  id:        string;
-  userId:    string;
-  status:    Status;
-  changedAt: string;
-  reason?:   string;
-  changedBy: string; // admin id, "self-registration", or "migrated from paper records"
-}
-
 export interface Tutorial {
   id:              string;
   beltId:          string; // -> Belt.id
@@ -107,9 +98,6 @@ export interface GalleryAlbum {
   published:  boolean;
   previews:   string[];
 }
-// Add to src/types.ts
-
-// Add to src/types.ts
 
 export type Certificate = {
   id: string;
