@@ -16,6 +16,7 @@ type MemberRow = {
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   health_notes: string | null;
+  photo_url: string | null;
   belt_id: string | null;
   admin_notes: User["adminNotes"] | null;
   name_correction_request: User["nameCorrectionRequest"];
@@ -32,6 +33,7 @@ function toUser(row: MemberRow): User {
     emergencyContactName: row.emergency_contact_name ?? undefined,
     emergencyContactPhone: row.emergency_contact_phone ?? undefined,
     healthNotes: row.health_notes ?? undefined,
+    photoUrl: row.photo_url ?? undefined,
     beltId: row.belt_id ?? undefined,
     role: row.role,
     status: row.status,
@@ -68,7 +70,7 @@ export async function getAllMembers(): Promise<User[]> {
   const { data, error } = await adminSupabase
     .from("users")
     .select(
-      "id, name, email, phone, role, status, registration_type, previous_belt, year_joined, gap_reason, emergency_contact_name, emergency_contact_phone, health_notes, belt_id, admin_notes, name_correction_request, created_at"
+      "id, name, email, phone, role, status, registration_type, previous_belt, year_joined, gap_reason, emergency_contact_name, emergency_contact_phone, health_notes, photo_url, belt_id, admin_notes, name_correction_request, created_at"
     )
     .order("created_at", { ascending: false });
 

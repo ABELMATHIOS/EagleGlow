@@ -77,15 +77,6 @@ const registrationTypeLabel: Record<Member['registrationType'], string> = {
   returning: 'Returning',
 };
 
-// jsPDF's setFillColor needs RGB integers, not a hex string like belt.color.
-function hexToRgb(hex: string): [number, number, number] {
-  const clean = hex.replace('#', '');
-  const r = parseInt(clean.substring(0, 2), 16) || 0;
-  const g = parseInt(clean.substring(2, 4), 16) || 0;
-  const b = parseInt(clean.substring(4, 6), 16) || 0;
-  return [r, g, b];
-}
-
 const STATUS_COLORS: Record<Member['status'], string> = {
   pending:   '#E74C3C',
   active:    '#2ECC71',
@@ -424,15 +415,6 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
               } catch (err) {
                 console.error(`Failed to draw photo for row ${data.row.index}:`, err);
               }
-            }
-          }
-
-          if (data.column.index === BELT_COL) {
-            const belt = beltByName.get(filtered[data.row.index].belt);
-            if (belt) {
-              const [r, g, b] = hexToRgb(belt.color);
-              doc.setFillColor(r, g, b);
-              doc.circle(data.cell.x + 4, data.cell.y + data.cell.height / 2, 1.3, 'F');
             }
           }
         },
