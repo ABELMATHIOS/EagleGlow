@@ -8,6 +8,7 @@ type TutorialsIndexProps = {
   belts: Belt[]; // real Supabase belts, sorted by order ascending
   userBeltOrder: number; // the logged-in member's current belt's order (0 if none)
   completedTutorialIds: string[]; // real progress from tutorial_progress table
+  onSelectBelt?: (slug: string) => void; // when provided (e.g. admin preview), intercepts card clicks instead of navigating via <Link>
 };
 
 function SectionLabel({ text }: { text: string }) {
@@ -27,7 +28,7 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function TutorialsIndex({ tutorials, belts, userBeltOrder, completedTutorialIds }: TutorialsIndexProps) {
+export default function TutorialsIndex({ tutorials, belts, userBeltOrder, completedTutorialIds, onSelectBelt }: TutorialsIndexProps) {
   const completedSet = new Set(completedTutorialIds);
 
   // A member can see their current belt and everything below it — not belts
@@ -249,14 +250,44 @@ export default function TutorialsIndex({ tutorials, belts, userBeltOrder, comple
                 </div>
               );
 
-              return belt.unlocked ? (
+              if (!belt.unlocked) {
+                return (
+                  <div key={belt.slug} className="belt-card-wrap">
+                    {cardContent}
+                  </div>
+                );
+              }
+
+              // Admin preview (or any caller that wants to intercept navigation)
+              // passes onSelectBelt — use a button so we stay inside the
+              // preview overlay instead of doing a real route navigation.
+              if (onSelectBelt) {
+                return (
+                  <button
+                    key={belt.slug}
+                    type="button"
+                    className="belt-card-wrap"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      margin: 0,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      width: '100%',
+                      font: 'inherit',
+                    }}
+                    onClick={() => onSelectBelt(belt.slug)}
+                  >
+                    {cardContent}
+                  </button>
+                );
+              }
+
+              return (
                 <Link key={belt.slug} href={`/tutorials/${belt.slug}`} className="belt-card-wrap">
                   {cardContent}
                 </Link>
-              ) : (
-                <div key={belt.slug} className="belt-card-wrap">
-                  {cardContent}
-                </div>
               );
             })}
           </div>

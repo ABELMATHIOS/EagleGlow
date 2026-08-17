@@ -264,6 +264,7 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
             belts={belts}
             userBeltOrder={maxBeltOrder}
             completedTutorialIds={[]}
+            onSelectBelt={(slug) => setPreviewView(slug)}
           />
         ) : (
           <TutorialDetail
