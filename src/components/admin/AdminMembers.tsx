@@ -335,6 +335,34 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     }
   }
 
+  // Crops a photo into a circle (transparent corners) via an offscreen
+  // canvas, so member photos read as proper ID-style headshots instead of
+  // plain squares. Not used for the logo — a square logo mark is fine.
+  function cropToCircle(dataUrl: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 200;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas not supported')); return; }
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  }
+
   const handleExportPDF = async () => {
     if (filtered.length === 0) return;
     setExportingPDF(true);
@@ -346,10 +374,23 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
       // Pre-fetch every image up front (logo + each row's photo), since the
       // per-cell drawing below runs synchronously inside autoTable's hooks
       // and can't await a fetch mid-render.
-      const [logo, photos] = await Promise.all([
+      const [logo, rawPhotos] = await Promise.all([
         fetchImageForPdf('/images/Eagle-Logo.png'),
         Promise.all(filtered.map((m) => (m.photoUrl ? fetchImageForPdf(m.photoUrl) : Promise.resolve(null)))),
       ]);
+
+      const photos = await Promise.all(
+        rawPhotos.map(async (photo) => {
+          if (!photo) return null;
+          try {
+            const circular = await cropToCircle(photo.dataUrl);
+            return { dataUrl: circular, format: 'PNG' };
+          } catch (err) {
+            console.error('Failed to crop photo to circle, using original:', err);
+            return photo;
+          }
+        })
+      );
 
       const doc = new jsPDF({ orientation: 'landscape' });
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -383,14 +424,15 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
 
       autoTable(doc, {
         startY: 30,
-        head: [['', 'Name', 'Phone', 'Belt', 'Joined', 'Emergency Contact', 'Health / Medical Notes']],
+        head: [['', 'Name', 'Phone', 'Belt', 'Joined', 'Emergency Name', 'Emergency Phone', 'Health / Medical Notes']],
         body: filtered.map((m) => [
           '',
           m.fullName,
           m.phone || '—',
           m.belt,
           m.yearJoined || '—',
-          [m.emergencyName, m.emergencyPhone].filter(Boolean).join(' — ') || '—',
+          m.emergencyName || '—',
+          m.emergencyPhone || '—',
           m.healthNotes || '—',
         ]),
         styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak', minCellHeight: 12 },
@@ -399,7 +441,7 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
         columnStyles: {
           [PHOTO_COL]: { cellWidth: 14 },
           [BELT_COL]: { cellWidth: 22 },
-          6: { cellWidth: 60 },
+          7: { cellWidth: 55 },
         },
         didDrawCell: (data) => {
           if (data.cell.section !== 'body') return;
@@ -419,6 +461,15 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
           }
         },
       });
+
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
+      }
 
       doc.save(`eagleglow-${activeBelt ? activeBelt.name.toLowerCase() + '-belt-' : ''}members-${dateStr}.pdf`);
     } finally {
