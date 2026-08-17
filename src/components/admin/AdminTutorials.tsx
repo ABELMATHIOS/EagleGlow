@@ -273,6 +273,7 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
             tutorials={previewTutorials}
             currentUserId={null}
             completedTutorialIds={[]}
+            onBack={() => setPreviewView('dashboard')}
           />
         )}
       </>

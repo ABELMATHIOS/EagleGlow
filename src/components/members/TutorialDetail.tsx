@@ -332,9 +332,10 @@ type TutorialDetailProps = {
   tutorials: DbTutorial[]; // real Supabase published tutorials
   currentUserId: string | null; // null if not logged in — disables mark-complete
   completedTutorialIds: string[]; // real progress from tutorial_progress table
+  onBack?: () => void; // when provided (e.g. admin preview), overrides the default "/tutorials" navigation
 };
 
-export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, currentUserId, completedTutorialIds }: TutorialDetailProps) {
+export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, currentUserId, completedTutorialIds, onBack }: TutorialDetailProps) {
   // Built from the real belts prop, not the old mock file — was previously
   // keyed off src/data/belts.ts, whose slugs happened to line up for THIS
   // lookup, but whose ids never matched a real tutorial.beltId FK below.
@@ -625,7 +626,13 @@ export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, cu
       <div style={{ minHeight: '100vh', background: '#0a0a0a', padding: '100px 24px 60px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
 
-          <Link href="/tutorials" className="back-link">← Back to Tutorials</Link>
+        {onBack ? (
+  <button type="button" onClick={onBack} className="back-link" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+    ← Back to Tutorials
+  </button>
+) : (
+  <Link href="/tutorials" className="back-link">← Back to Tutorials</Link>
+)}
 
           {/* Belt header */}
           <div style={{
