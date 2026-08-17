@@ -368,7 +368,7 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     setExportingPDF(true);
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
-      const activeBelt = filterBelt !== 'all' ? beltById.get(filterBelt) : undefined;
+      const activeBelt = filterBelt !== 'all' ? beltByName.get(filterBelt) : undefined;
       const title = activeBelt ? `${activeBelt.name} belt students` : 'All members';
 
       // Pre-fetch every image up front (logo + each row's photo), since the
