@@ -32,10 +32,6 @@ type Member = {
   status: Status;
   registeredAt: string;
   photoUrl: string;
-  dateOfBirth: string;
-  sex: string;
-  heightCm: string;
-  weightKg: string;
 };
 
 type AdminMembersProps = {
@@ -71,10 +67,6 @@ function toMembers(users: User[], belts: Belt[]): Member[] {
       status: u.status,
       registeredAt: u.createdAt,
       photoUrl: u.photoUrl ?? '',
-      dateOfBirth: u.dateOfBirth ?? '',
-      sex: u.sex ?? '',
-      heightCm: u.heightCm != null ? String(u.heightCm) : '',
-      weightKg: u.weightKg != null ? String(u.weightKg) : '',
     };
   });
 }
@@ -110,14 +102,12 @@ const PHONE_RE = /^[+\d][\d\s-]{6,}$/;
 // downloaded file somewhere only the coach/admin controls.
 const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Full Name',               get: (m) => m.fullName },
-  { header: 'Email',                   get: (m) => m.email },
   { header: 'Phone',                   get: (m) => m.phone },
   { header: 'Current Belt',            get: (m) => m.belt },
   { header: 'Year Joined',             get: (m) => m.yearJoined },
   { header: 'Emergency Contact Name',  get: (m) => m.emergencyName },
   { header: 'Emergency Contact Phone', get: (m) => m.emergencyPhone },
   { header: 'Health / Medical Notes',  get: (m) => m.healthNotes },
-  { header: 'Registered On',           get: (m) => m.registeredAt },
 ];
 
 export default function AdminMembers({ initialMembers, belts }: AdminMembersProps) {
@@ -329,238 +319,128 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     URL.revokeObjectURL(url);
   };
 
- const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
- const handleExportPDF = async () => {
+  // Fetches an image (member photo or the site logo) and returns it as a
+  // base64 data URL plus its detected format ('JPEG'/'PNG'/etc) — jsPDF's
+  // addImage() needs the format as an explicit argument; without it, it
+  // silently misreads a coordinate as the format string and draws nothing.
+  async function fetchImageForPdf(url: string): Promise<{ dataUrl: string; format: string } | null> {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const match = dataUrl.match(/^data:image\/(\w+);/);
+      const format = (match?.[1] ?? 'JPEG').toUpperCase();
+      return { dataUrl, format };
+    } catch (err) {
+      console.error(`Failed to load image for PDF export (${url}):`, err);
+      return null;
+    }
+  }
+
+  const handleExportPDF = async () => {
     if (filtered.length === 0) return;
     setExportingPDF(true);
     try {
       const dateStr = new Date().toISOString().slice(0, 10);
+      const activeBelt = filterBelt !== 'all' ? beltById.get(filterBelt) : undefined;
+      const title = activeBelt ? `${activeBelt.name} belt students` : 'All members';
+
+      // Pre-fetch every image up front (logo + each row's photo), since the
+      // per-cell drawing below runs synchronously inside autoTable's hooks
+      // and can't await a fetch mid-render.
+      const [logo, photos] = await Promise.all([
+        fetchImageForPdf('/images/Eagle-Logo.png'),
+        Promise.all(filtered.map((m) => (m.photoUrl ? fetchImageForPdf(m.photoUrl) : Promise.resolve(null)))),
+      ]);
+
       const doc = new jsPDF({ orientation: 'landscape' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 14;
 
-      doc.setFontSize(16);
+      if (logo) {
+        try {
+          doc.addImage(logo.dataUrl, logo.format, margin, 10, 12, 12);
+        } catch (err) {
+          console.error('Failed to draw logo in PDF:', err);
+        }
+      }
+
+      const textX = logo ? margin + 16 : margin;
+      doc.setFontSize(15);
       doc.setTextColor(20, 20, 20);
-      doc.text('EagleGlow Members', 14, 16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, textX, 16);
 
-      doc.setFontSize(10);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(120, 120, 120);
-      doc.text(`Generated ${dateStr} — ${filtered.length} members`, 14, 22);
+      doc.text(`EagleGlow Wushu and Fitness Center — generated ${dateStr} — ${filtered.length} students`, textX, 21.5);
 
-      // Pre-fetch each member's photo as a base64 data URL up front, since
-      // autoTable's didDrawCell hook below runs synchronously and can't
-      // await a fetch mid-render. Members without a photo (or a failed
-      // fetch) simply get a blank photo cell — never blocks the export.
-      const photoDataUrls = await Promise.all(
-        filtered.map(async (m) => {
-          if (!m.photoUrl) return null;
-          try {
-            const res = await fetch(m.photoUrl);
-            const blob = await res.blob();
-            return await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          } catch (err) {
-            console.error(`Failed to load photo for PDF export (${m.fullName}):`, err);
-            return null;
-          }
-        })
-      );
+      doc.setDrawColor(201, 168, 76);
+      doc.setLineWidth(0.6);
+      doc.line(margin, 25, pageWidth - margin, 25);
 
-      const PHOTO_COL_WIDTH = 16;
+      const PHOTO_COL = 0;
+      const BELT_COL = 3;
 
       autoTable(doc, {
-        startY: 28,
-        head: [['Photo', ...CSV_COLUMNS.map((c) => c.header)]],
-        body: filtered.map((m) => ['', ...CSV_COLUMNS.map((c) => c.get(m) || '—')]),
-        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak', minCellHeight: 16 },
+        startY: 30,
+        head: [['', 'Name', 'Phone', 'Belt', 'Joined', 'Emergency Contact', 'Health / Medical Notes']],
+        body: filtered.map((m) => [
+          '',
+          m.fullName,
+          m.phone || '—',
+          m.belt,
+          m.yearJoined || '—',
+          [m.emergencyName, m.emergencyPhone].filter(Boolean).join(' — ') || '—',
+          m.healthNotes || '—',
+        ]),
+        styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak', minCellHeight: 12 },
         headStyles: { fillColor: [201, 168, 76], textColor: [17, 17, 17], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
+        alternateRowStyles: { fillColor: [250, 248, 242] },
         columnStyles: {
-          0: { cellWidth: PHOTO_COL_WIDTH },
-          8: { cellWidth: 55 }, // Health / Medical Notes — shifted +1 for the new Photo column
+          [PHOTO_COL]: { cellWidth: 14 },
+          [BELT_COL]: { cellWidth: 22 },
+          6: { cellWidth: 60 },
         },
         didDrawCell: (data) => {
-          if (data.column.index === 0 && data.cell.section === 'body') {
-            const dataUrl = photoDataUrls[data.row.index];
-            if (dataUrl) {
-              const size = 12;
+          if (data.cell.section !== 'body') return;
+
+          if (data.column.index === PHOTO_COL) {
+            const photo = photos[data.row.index];
+            if (photo) {
+              const size = 8;
               const x = data.cell.x + (data.cell.width - size) / 2;
               const y = data.cell.y + (data.cell.height - size) / 2;
               try {
-                // addImage requires an explicit format ('JPEG'/'PNG'/etc) —
-                // without it, jsPDF misreads the x-coordinate argument as
-                // the format string and silently fails to draw anything.
-                const match = dataUrl.match(/^data:image\/(\w+);/);
-                const format = (match?.[1] ?? 'JPEG').toUpperCase();
-                doc.addImage(dataUrl, format, x, y, size, size);
+                doc.addImage(photo.dataUrl, photo.format, x, y, size, size);
               } catch (err) {
-                console.error(`Failed to draw photo in PDF for row ${data.row.index}:`, err);
+                console.error(`Failed to draw photo for row ${data.row.index}:`, err);
               }
+            }
+          }
+
+          if (data.column.index === BELT_COL) {
+            const belt = beltByName.get(filtered[data.row.index].belt);
+            if (belt) {
+              const [r, g, b] = hexToRgb(belt.color);
+              doc.setFillColor(r, g, b);
+              doc.circle(data.cell.x + 4, data.cell.y + data.cell.height / 2, 1.3, 'F');
             }
           }
         },
       });
 
-      doc.save(`eagleglow-members-${dateStr}.pdf`);
+      doc.save(`eagleglow-${activeBelt ? activeBelt.name.toLowerCase() + '-belt-' : ''}members-${dateStr}.pdf`);
     } finally {
       setExportingPDF(false);
-    }
-  };
-
-  const [exportingProfiles, setExportingProfiles] = useState(false);
-
-  // One PDF, one full page per member — for printing and filing individual
-  // physical records, as opposed to handleExportPDF's single roster table.
-  const handleExportProfileSheets = async () => {
-    if (filtered.length === 0) return;
-    setExportingProfiles(true);
-    try {
-      const dateStr = new Date().toISOString().slice(0, 10);
-
-      const photoDataUrls = await Promise.all(
-        filtered.map(async (m) => {
-          if (!m.photoUrl) return null;
-          try {
-            const res = await fetch(m.photoUrl);
-            const blob = await res.blob();
-            return await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          } catch (err) {
-            console.error(`Failed to load photo for profile sheet (${m.fullName}):`, err);
-            return null;
-          }
-        })
-      );
-
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 16;
-
-      filtered.forEach((m, i) => {
-        if (i > 0) doc.addPage();
-
-        const belt = beltByName.get(m.belt);
-
-        // Header bar
-        doc.setFillColor(201, 168, 76);
-        doc.rect(0, 0, pageWidth, 22, 'F');
-        doc.setFontSize(14);
-        doc.setTextColor(17, 17, 17);
-        doc.setFont('helvetica', 'bold');
-        doc.text('EagleGlow — Member Profile', margin, 14);
-
-        let y = 32;
-
-        // Photo box
-        const photoSize = 32;
-        doc.setDrawColor(220, 220, 220);
-        doc.rect(margin, y, photoSize, photoSize);
-        const dataUrl = photoDataUrls[i];
-        if (dataUrl) {
-          const match = dataUrl.match(/^data:image\/(\w+);/);
-          const format = (match?.[1] ?? 'JPEG').toUpperCase();
-          try {
-            doc.addImage(dataUrl, format, margin, y, photoSize, photoSize);
-          } catch (err) {
-            console.error(`Failed to draw photo for ${m.fullName}:`, err);
-          }
-        } else {
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(180, 180, 180);
-          doc.text('No photo', margin + photoSize / 2, y + photoSize / 2, { align: 'center' });
-        }
-
-        // Name, belt, status — to the right of the photo
-        const textX = margin + photoSize + 10;
-        doc.setFontSize(18);
-        doc.setTextColor(20, 20, 20);
-        doc.setFont('helvetica', 'bold');
-        doc.text(m.fullName, textX, y + 8);
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80, 80, 80);
-        if (belt) {
-          const [r, g, b] = hexToRgb(belt.color);
-          doc.setFillColor(r, g, b);
-          doc.circle(textX + 2, y + 16, 2, 'F');
-        }
-        doc.text(`${m.belt} Belt`, textX + 7, y + 17);
-
-        doc.setFontSize(10);
-        doc.text(`Status: ${m.status.charAt(0).toUpperCase() + m.status.slice(1)}`, textX, y + 25);
-
-        y += photoSize + 14;
-
-        // Details — two-column key/value grid
-        const rows: [string, string][] = [
-          ['Email', m.email],
-          ['Phone', m.phone || '—'],
-          ['Date of Birth', m.dateOfBirth || '—'],
-          ['Sex', m.sex ? m.sex.charAt(0).toUpperCase() + m.sex.slice(1) : '—'],
-          ['Height', m.heightCm ? `${m.heightCm} cm` : '—'],
-          ['Weight', m.weightKg ? `${m.weightKg} kg` : '—'],
-          ['Emergency Contact', m.emergencyName || '—'],
-          ['Emergency Phone', m.emergencyPhone || '—'],
-          ['Registration Type', registrationTypeLabel[m.registrationType]],
-          ['Previous Belt', m.previousBelt || '—'],
-          ['Year Joined', m.yearJoined || '—'],
-          ['Registered On', new Date(m.registeredAt).toLocaleDateString('en-US')],
-        ];
-
-        const colWidth = (pageWidth - margin * 2) / 2;
-        rows.forEach(([label, value], idx) => {
-          const col = idx % 2;
-          const row = Math.floor(idx / 2);
-          const x = margin + col * colWidth;
-          const rowY = y + row * 10;
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(140, 140, 140);
-          doc.text(label.toUpperCase(), x, rowY);
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(30, 30, 30);
-          doc.text(value, x, rowY + 5);
-        });
-
-        y += Math.ceil(rows.length / 2) * 10 + 10;
-
-        // Health notes — bordered box, kept visually distinct since it's
-        // safety-relevant info instructors need to notice at a glance.
-        const notesHeight = 30;
-        doc.setDrawColor(230, 180, 180);
-        doc.setFillColor(253, 245, 245);
-        doc.rect(margin, y, pageWidth - margin * 2, notesHeight, 'FD');
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(180, 60, 60);
-        doc.text('HEALTH / MEDICAL NOTES', margin + 4, y + 7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60, 30, 30);
-        const notesText = m.healthNotes || 'None on file.';
-        const wrapped = doc.splitTextToSize(notesText, pageWidth - margin * 2 - 8);
-        doc.text(wrapped, margin + 4, y + 13);
-
-        // Footer
-        doc.setFontSize(7);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(150, 150, 150);
-        doc.text(`Generated ${dateStr}`, margin, pageHeight - 10);
-      });
-
-      doc.save(`eagleglow-profile-sheets-${dateStr}.pdf`);
-    } finally {
-      setExportingProfiles(false);
     }
   };
 
@@ -768,9 +648,6 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="admin-btn-ghost" onClick={handleExportPDF} disabled={exportingPDF}>
             {exportingPDF ? 'Generating…' : '🖨 Export as PDF'}
-          </button>
-          <button className="admin-btn-ghost" onClick={handleExportProfileSheets} disabled={exportingProfiles}>
-            {exportingProfiles ? 'Generating…' : '🗂 Export Profile Sheets'}
           </button>
           <button className="admin-btn-gold" onClick={handleExport}>
             ⬇ Export to CSV
