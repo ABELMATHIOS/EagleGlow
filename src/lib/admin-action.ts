@@ -29,6 +29,25 @@ export async function promoteBelt(userId: string, beltId: string) {
 
   return res.json();
 }
+// Call from AdminMembers.tsx's "Reset Password" button. Sets the
+// member's password directly via the Supabase admin API — no email is
+// sent, so this doesn't touch the 2/hour SMTP rate limit. Throws on
+// failure so the caller can show an error toast/message.
+export async function resetMemberPassword(userId: string, newPassword: string) {
+  const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ newPassword }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to reset password");
+  }
+
+  return res.json();
+}
+
 // Call from AdminMembers.tsx's Decline / Suspend / Reactivate / Mark
 // Serving buttons. Throws on failure so the caller can show an error
 // toast/message.

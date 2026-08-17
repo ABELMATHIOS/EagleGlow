@@ -4,7 +4,7 @@ import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AdminNote, NameCorrectionRequest, Status, RegistrationType, User, Belt } from '@/src/types';
-import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection } from '@/src/lib/admin-action';
+import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword } from '@/src/lib/admin-action';
 
 // This admin view keeps its own flat shape (fullName/belt-as-name instead of
 // name/beltId) because that's what this screen's filtering and CSV export
@@ -146,6 +146,15 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
 
   const [correctionSaving, setCorrectionSaving] = useState<string | null>(null);
   const [correctionError,  setCorrectionError]  = useState<string | null>(null);
+
+  // Reset Password — admin sets a new password directly (no email sent),
+  // for members who forgot theirs and can't use the email-based reset
+  // because of the Supabase SMTP rate limit.
+  const [resettingPassword, setResettingPassword] = useState(false); // panel open/closed
+  const [newPasswordDraft, setNewPasswordDraft] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState<string | null>(null); // member id currently saving
+  const [passwordError,  setPasswordError]  = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null); // member id just succeeded
   const filtered = members.filter((m) => {
     const matchSearch = m.fullName.toLowerCase().includes(search.toLowerCase()) ||
       m.email.toLowerCase().includes(search.toLowerCase());
@@ -169,6 +178,10 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     setApproveError(null);
     setPromoteError(null);
     setStatusError(null);
+    setResettingPassword(false);
+    setNewPasswordDraft('');
+    setPasswordError(null);
+    setPasswordSuccess(null);
     if (!isSame) {
       const m = members.find((mm) => mm.id === id);
       if (m) setContactDraft({ email: m.email, phone: m.phone, emergencyName: m.emergencyName, emergencyPhone: m.emergencyPhone });
@@ -212,6 +225,45 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
   const reactivateMember = (id: string) => setMemberStatus(id, 'active');
   const suspendMember    = (id: string) => setMemberStatus(id, 'paused');
   const markServing      = (id: string) => setMemberStatus(id, 'serving');
+
+  // Generates something easy to say out loud and retype correctly (two
+  // short words + a number), rather than the admin inventing one on the
+  // spot. Not meant to be high-entropy — the member is expected to change
+  // it themselves from Profile after logging in.
+  const generateSimplePassword = () => {
+    const words = [
+      'tiger', 'eagle', 'dragon', 'crane', 'lotus', 'panda', 'wolf', 'hawk',
+      'falcon', 'phoenix', 'maple', 'river', 'cobra', 'storm', 'shadow', 'blaze',
+    ];
+    const w1 = words[Math.floor(Math.random() * words.length)];
+    let w2 = words[Math.floor(Math.random() * words.length)];
+    while (w2 === w1) w2 = words[Math.floor(Math.random() * words.length)];
+    const num = Math.floor(100 + Math.random() * 900); // 3 digits
+    setNewPasswordDraft(`${w1}${w2}${num}`);
+    setPasswordError(null);
+  };
+
+  // Real: calls POST /api/admin/users/[id]/reset-password. Sets the
+  // password directly server-side — no email involved, so no rate limit.
+  const confirmResetPassword = async (id: string) => {
+    if (newPasswordDraft.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    setPasswordSaving(id);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    try {
+      await resetMemberPassword(id, newPasswordDraft);
+      setPasswordSuccess(id);
+      setNewPasswordDraft('');
+      setResettingPassword(false);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Failed to reset password');
+    } finally {
+      setPasswordSaving(null);
+    }
+  };
 
   const startPromote = (currentBeltId: string) => {
     const idx = belts.findIndex((b) => b.id === currentBeltId);
@@ -1162,6 +1214,79 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                 )}
 
                 {statusError && <p className="field-error">{statusError}</p>}
+
+                {/* Reset Password — any non-pending member can be helped
+                    here, since email-based reset is rate-limited. */}
+                {selectedMember.status !== 'pending' && (
+                  <div style={{ marginTop: 12 }}>
+                    {!resettingPassword ? (
+                      <button
+                        className="admin-btn-ghost"
+                        style={{ width: '100%' }}
+                        onClick={() => {
+                          setResettingPassword(true);
+                          setPasswordError(null);
+                          setPasswordSuccess(null);
+                        }}
+                      >
+                        Reset Password
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            type="text"
+                            placeholder="New temporary password"
+                            value={newPasswordDraft}
+                            onChange={(e) => setNewPasswordDraft(e.target.value)}
+                            className="admin-input"
+                            style={{ flex: 1 }}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            className="admin-btn-ghost"
+                            style={{ whiteSpace: 'nowrap' }}
+                            onClick={generateSimplePassword}
+                          >
+                            Generate
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            className="admin-btn-gold"
+                            style={{ flex: 1 }}
+                            onClick={() => confirmResetPassword(selectedMember.id)}
+                            disabled={passwordSaving === selectedMember.id}
+                          >
+                            {passwordSaving === selectedMember.id ? 'Saving...' : 'Set Password'}
+                          </button>
+                          <button
+                            className="admin-btn-ghost"
+                            style={{ flex: 1 }}
+                            onClick={() => {
+                              setResettingPassword(false);
+                              setNewPasswordDraft('');
+                              setPasswordError(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>
+                          Tell the member this password out-of-band (in person, WhatsApp, etc.) —
+                          it isn&apos;t emailed to them. They can change it themselves from Profile afterward.
+                        </p>
+                      </div>
+                    )}
+                    {passwordError && <p className="field-error">{passwordError}</p>}
+                    {passwordSuccess === selectedMember.id && !resettingPassword && (
+                      <p style={{ fontSize: 12, color: '#22C55E', margin: '6px 0 0' }}>
+                        Password updated. Let the member know their new password.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
