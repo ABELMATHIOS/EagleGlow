@@ -143,7 +143,7 @@ export default function Pending({ status }: PendingProps) {
               fontSize: 12, lineHeight: 1.7,
             }}>
               Questions? Contact us at{' '}
-              <span style={{ color: '#C9A84C' }}>Eagleglow@gmail.com</span>
+              <span style={{ color: '#C9A84C' }}>info.eagleglow@gmail.com</span>
               {' '}or call{' '}
               <span style={{ color: '#C9A84C' }}>+251-912-052-349</span>
             </p>

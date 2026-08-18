@@ -66,8 +66,8 @@ export default function ContactPreview() {
         </svg>
       ),
       label: "Email Us",
-      value: "Eagleglow@gmail.com",
-      href: "mailto:Eagleglow@gmail.com",
+      value: "info.eagleglow@gmail.com",
+      href: "mailto:info.eagleglow@gmail.com",
       external: false,
     },
   ];

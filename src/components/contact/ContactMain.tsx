@@ -28,8 +28,8 @@ export default function ContactMain() {
     {
       icon: '✉️',
       label: 'Email',
-      value: 'Eagleglow@gmail.com',
-      link: 'mailto:Eagleglow@gmail.com',
+      value: 'info.eagleglow@gmail.com',
+      link: 'mailto:info.eagleglow@gmail.com',
       linkText: 'Send email',
     },
     {

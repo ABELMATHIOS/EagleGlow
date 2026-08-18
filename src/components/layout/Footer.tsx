@@ -296,7 +296,7 @@ export default function Footer() {
           <div className="ft-contact-inner">
             <a href="tel:+251912052349" className="ft-contact-link">+251-912-052-349</a>
             <div className="ft-dot" />
-            <a href="mailto:Eagleglow@gmail.com" className="ft-contact-link">Eagleglow@gmail.com</a>
+            <a href="mailto:info.eagleglow@gmail.com" className="ft-contact-link">info.eagleglow@gmail.com</a>
             <div className="ft-dot" />
             <a
             href="https://maps.app.goo.gl/ekPTsHzhrpQv9uUcA"
