@@ -51,11 +51,18 @@ export async function resetMemberPassword(userId: string, newPassword: string) {
 // Call from AdminMembers.tsx's Decline / Suspend / Reactivate / Mark
 // Serving buttons. Throws on failure so the caller can show an error
 // toast/message.
-export async function updateMemberStatus(userId: string, status: string) {
+import type { Status } from "@/src/types";
+
+// Call from AdminMembers.tsx's Decline / Suspend / Reactivate / Mark
+// Serving / Withdraw / End Service buttons. `previousStatus` is optional —
+// pass it on Reactivate so the API route can restore the member's status
+// from before they were paused, instead of always resetting to 'active'.
+// Throws on failure so the caller can show an error toast/message.
+export async function updateMemberStatus(userId: string, status: Status, previousStatus?: Status) {
   const res = await fetch(`/api/admin/users/${userId}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, previousStatus }),
   });
 
   if (!res.ok) {

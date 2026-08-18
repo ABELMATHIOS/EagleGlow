@@ -31,6 +31,7 @@ const STATUS_LABEL: Record<Status, string> = {
   serving:   'Serving',
   paused:    'Paused',
   withdrawn: 'Withdrawn',
+  served:    'Served',
 };
 const STATUS_COLOR: Record<Status, string> = {
   pending:   '#E74C3C',
@@ -39,6 +40,7 @@ const STATUS_COLOR: Record<Status, string> = {
   serving:   '#9B59B6',
   paused:    '#F39C12',
   withdrawn: 'rgba(255,255,255,0.4)',
+  served:    '#1ABC9C',
 };
 
 function SectionLabel({ text }: { text: string }) {

@@ -17,6 +17,7 @@ const STATUS_COLORS: Record<Status, string> = {
   serving:   '#9B59B6',
   paused:    '#F39C12',
   withdrawn: 'rgba(255,255,255,0.4)',
+  served: '#1ABC9C',
 };
 
 export default function AdminOverview({ members, belts }: AdminOverviewProps) {

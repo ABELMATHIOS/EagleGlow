@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Tutorial as DbTutorial, Belt } from '@/src/types';
 import { markTutorialComplete, markTutorialIncomplete } from '@/src/lib/tutorial-progress-client';
+import { parseYoutubeUrl, toYoutubeEmbedSrc, toYoutubeWatchUrl, type YoutubeRef } from '@/src/lib/youtube';
 
 /* ============================================================
    TYPES & DATA
    ============================================================ */
 
 type BeltId = 'white' | 'yellow' | 'green' | 'blue' | 'red' | 'brown' | 'black';
-type Category = 'taolu' | 'kicks' | 'sanda' | 'gymnastics' | 'flexibility';
+type Category = 'taolu' | 'kicks' | 'sanda' | 'gymnastics' | 'flexibility' | 'instructor_reference';
 
 type Tutorial = {
   id: string;
@@ -21,7 +22,7 @@ type Tutorial = {
   description?: string;
   completed: boolean;
   category: Category;
-  videoId?: string;
+  youtube?: YoutubeRef;
 };
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -30,7 +31,12 @@ const CATEGORY_LABEL: Record<Category, string> = {
   sanda:       'Sanda / Fight Skill',
   gymnastics:  'Gymnastics',
   flexibility: 'Flexibility',
+  instructor_reference: 'Instructor Reference',
 };
+
+// Reference material isn't real exam curriculum — kept out of grading
+// progress counts so it doesn't skew "X/Y complete" stats.
+const CURRICULUM_CATEGORIES: Category[] = ['taolu', 'kicks', 'sanda', 'gymnastics', 'flexibility'];
 
 const GRADING_REQUIREMENTS: Record<BeltId, { category: string; minPercent?: number; display?: string }[]> = {
   white: [
@@ -115,6 +121,8 @@ function CategoryIcon({ category, size = 16 }: { category: Category; size?: numb
       return <svg {...common}><path d="M4 12 A8 8 0 1 1 12 4" /></svg>;
     case 'flexibility':
       return <svg {...common}><path d="M4 16 C4 10 16 10 16 4" /></svg>;
+    case 'instructor_reference':
+      return <svg {...common}><rect x="3" y="4" width="14" height="12" rx="1.5" /><path d="M8 8 L13 10 L8 12 Z" fill="currentColor" stroke="none" /></svg>;
     default:
       return <svg {...common}><path d="M10 4 L10 16 M4.5 7 L15.5 13 M15.5 7 L4.5 13" /></svg>;
   }
@@ -217,7 +225,8 @@ function TutorialRow({
   togglingComplete: boolean;
   canToggleComplete: boolean;
 }) {
-  const hasVideo = Boolean(tutorial.videoId);
+  const hasVideo = Boolean(tutorial.youtube);
+  const isPlaylist = tutorial.youtube?.type === 'playlist';
   const panelId = `tutorial-panel-${tutorial.id}`;
 
   return (
@@ -253,11 +262,13 @@ function TutorialRow({
           <span className="tutorial-title">{tutorial.title}</span>
           {isActive && tutorial.description && <span className="tutorial-description">{tutorial.description}</span>}
           <span className="tutorial-meta">
-            {tutorial.durationMinutes != null
-              ? formatDuration(tutorial.durationMinutes)
-              : hasVideo
-                ? 'Duration TBD'
-                : 'In-person session'}
+            {isPlaylist
+              ? 'Playlist'
+              : tutorial.durationMinutes != null
+                ? formatDuration(tutorial.durationMinutes)
+                : hasVideo
+                  ? 'Duration TBD'
+                  : 'In-person session'}
           </span>
           <span className="cat-tag">
             {CATEGORY_LABEL[tutorial.category]}
@@ -266,29 +277,29 @@ function TutorialRow({
 
         {/* Watch / instructor-led affordance */}
         <span className={`watch-btn${hasVideo ? '' : ' instructor'}`}>
-          {hasVideo ? '▶ Watch' : '🧑‍🏫 Details'}
+          {hasVideo ? (isPlaylist ? '▶ Watch Playlist' : '▶ Watch') : '🧑‍🏫 Details'}
         </span>
       </button>
 
       {isActive && (
         <div id={panelId} className="tutorial-expanded">
-          {hasVideo ? (
+          {hasVideo && tutorial.youtube ? (
             <>
               <div className="video-wrap">
                 <iframe
-                  src={`https://www.youtube-nocookie.com/embed/${tutorial.videoId}`}
+                  src={toYoutubeEmbedSrc(tutorial.youtube)}
                   title={tutorial.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
               </div>
               <a
-                href={`https://www.youtube.com/watch?v=${tutorial.videoId}`}
+                href={toYoutubeWatchUrl(tutorial.youtube)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="youtube-link"
               >
-                Open on YouTube ↗
+                {isPlaylist ? 'Open Playlist on YouTube ↗' : 'Open on YouTube ↗'}
               </a>
             </>
           ) : (
@@ -329,13 +340,27 @@ function TutorialRow({
 type TutorialDetailProps = {
   belt: string;
   belts: Belt[]; // real Supabase belts — used to resolve tutorial.beltId (a real FK) to a slug
-  tutorials: DbTutorial[]; // real Supabase published tutorials
+  tutorials: DbTutorial[]; // real Supabase tutorials (published, or all if admin preview passes drafts)
   currentUserId: string | null; // null if not logged in — disables mark-complete
   completedTutorialIds: string[]; // real progress from tutorial_progress table
   onBack?: () => void; // when provided (e.g. admin preview), overrides the default "/tutorials" navigation
+  // Slug of the belt the *viewer* currently holds — used only to gate
+  // instructor_reference visibility (exactly Black Belt). Typed as plain
+  // string (not the local BeltId union) since callers pass Belt.slug
+  // straight from the shared types.ts, which is just `string`. Leave
+  // undefined for logged-out / unknown viewers, which hides instructor_reference.
+  viewerBeltSlug?: string | null;
 };
 
-export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, currentUserId, completedTutorialIds, onBack }: TutorialDetailProps) {
+export default function TutorialDetail({
+  belt,
+  belts,
+  tutorials: dbTutorials,
+  currentUserId,
+  completedTutorialIds,
+  onBack,
+  viewerBeltSlug,
+}: TutorialDetailProps) {
   // Built from the real belts prop, not the old mock file — was previously
   // keyed off src/data/belts.ts, whose slugs happened to line up for THIS
   // lookup, but whose ids never matched a real tutorial.beltId FK below.
@@ -346,6 +371,10 @@ export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, cu
   const beltId = (belt in BELTS ? belt : null) as BeltId | null;
   const beltMeta = beltId ? BELTS[beltId] : { name: 'Unknown', color: '#C9A84C' };
 
+  // instructor_reference is Black-Belt-only content, gated by the viewer's
+  // own belt — not by the belt tab currently being looked at.
+  const viewerIsBlackBelt = viewerBeltSlug === 'black';
+
   const [completedIds, setCompletedIds] = useState<Set<string>>(() => new Set(completedTutorialIds));
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -355,7 +384,7 @@ export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, cu
     // every real tutorial silently fell back to 'white' here, meaning
     // belt-specific tutorial lists were effectively broken for every belt.
     const beltSlug = belts.find((b) => b.id === t.beltId)?.slug as BeltId | undefined;
-    const videoId = t.videoUrl ? t.videoUrl.split('v=')[1] : undefined;
+    const ref = t.videoUrl ? parseYoutubeUrl(t.videoUrl) ?? undefined : undefined;
     return {
       id: t.id,
       belt: (beltSlug ?? 'white') as BeltId,
@@ -364,11 +393,17 @@ export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, cu
       description: t.description,
       completed: completedIds.has(t.id),
       category: t.category as Category,
-      videoId,
+      youtube: ref,
     };
   }), [dbTutorials, completedIds, belts]);
 
-  const tutorialsForBelt = beltId ? TUTORIALS.filter((t) => t.belt === beltId) : [];
+  const tutorialsForBeltRaw = beltId ? TUTORIALS.filter((t) => t.belt === beltId) : [];
+
+  // Hide instructor_reference entirely unless the viewer is exactly Black Belt.
+  const tutorialsForBelt = viewerIsBlackBelt
+    ? tutorialsForBeltRaw
+    : tutorialsForBeltRaw.filter((t) => t.category !== 'instructor_reference');
+
   const requirements = beltId ? GRADING_REQUIREMENTS[beltId] : [];
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -385,9 +420,15 @@ export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, cu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const presentCategories = Object.keys(CATEGORY_LABEL) as Category[];
+  // Filter chips only offer categories the viewer can actually see.
+  const presentCategories = (Object.keys(CATEGORY_LABEL) as Category[]).filter(
+    (c) => c !== 'instructor_reference' || viewerIsBlackBelt
+  );
 
-  const overallCompleted = tutorialsForBelt.filter((t) => t.completed).length;
+  // Progress counts exclude instructor reference material — it isn't real
+  // exam curriculum, so it shouldn't affect grading progress stats.
+  const curriculumForBelt = tutorialsForBelt.filter((t) => CURRICULUM_CATEGORIES.includes(t.category));
+  const overallCompleted = curriculumForBelt.filter((t) => t.completed).length;
 
   const visibleTutorials = activeCategory === 'all'
     ? tutorialsForBelt
@@ -662,7 +703,7 @@ export default function TutorialDetail({ belt, belts, tutorials: dbTutorials, cu
             </div>
 
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
-              {overallCompleted}/{tutorialsForBelt.length} tutorials watched
+              {overallCompleted}/{curriculumForBelt.length} tutorials watched
             </span>
           </div>
 

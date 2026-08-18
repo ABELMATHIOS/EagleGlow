@@ -1,8 +1,8 @@
 export type Role             = "guest" | "member" | "admin";
-export type Status           = "pending" | "active" | "graduated" | "serving" | "paused" | "withdrawn";
+export type Status = "pending" | "active" | "graduated" | "serving" | "paused" | "withdrawn" | "served";
 export type RegistrationType = "new" | "training" | "returning";
 export type ClassType        = "wushu" | "fitness";
-export type TutorialCategory = "taolu" | "kicks" | "sanda" | "gymnastics" | "flexibility" | "general";
+export type TutorialCategory = "taolu" | "kicks" | "sanda" | "gymnastics" | "flexibility" | "general" | "instructor_reference";
 export type GalleryCategory  = "graduation" | "competition" | "training";
 
 export interface Belt {

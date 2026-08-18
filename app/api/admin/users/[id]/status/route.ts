@@ -3,10 +3,10 @@ import { createClient } from "@/src/lib/supabase/server";
 import { createAdminClient } from "@/src/lib/supabase/admin";
 
 // One endpoint for every status transition an admin can make from
-// AdminMembers.tsx (Decline, Suspend, Reactivate, Mark Serving). Approve
-// stays on its own dedicated route because it also flips role -> member,
-// not just status.
-const ALLOWED_STATUSES = ["active", "paused", "withdrawn", "serving", "graduated"] as const;
+// AdminMembers.tsx (Decline, Suspend, Reactivate, Mark Serving, Withdraw,
+// End Service). Approve stays on its own dedicated route because it also
+// flips role -> member, not just status.
+const ALLOWED_STATUSES = ["active", "paused", "withdrawn", "serving", "graduated", "served"] as const;
 type AllowedStatus = (typeof ALLOWED_STATUSES)[number];
 
 export async function PATCH(
@@ -16,7 +16,7 @@ export async function PATCH(
   try {
     const { id: targetUserId } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, previousStatus } = body;
 
     if (typeof status !== "string" || !ALLOWED_STATUSES.includes(status as AllowedStatus)) {
       return NextResponse.json(
@@ -25,7 +25,15 @@ export async function PATCH(
       );
     }
 
-    // Step 1 — verify the CALLER is an admin. Same pattern as approve/belt.
+    if (previousStatus !== undefined) {
+      if (typeof previousStatus !== "string" || !ALLOWED_STATUSES.includes(previousStatus as AllowedStatus)) {
+        return NextResponse.json(
+          { error: `previousStatus must be one of: ${ALLOWED_STATUSES.join(", ")}` },
+          { status: 400 }
+        );
+      }
+    }
+
     const supabase = await createClient();
     const {
       data: { user: caller },
@@ -54,9 +62,13 @@ export async function PATCH(
     }
 
     const adminSupabase = createAdminClient();
+
+    const statusToWrite: AllowedStatus =
+      status === "active" && previousStatus ? (previousStatus as AllowedStatus) : (status as AllowedStatus);
+
     const { data, error } = await adminSupabase
       .from("users")
-      .update({ status })
+      .update({ status: statusToWrite })
       .eq("id", targetUserId)
       .select()
       .single();

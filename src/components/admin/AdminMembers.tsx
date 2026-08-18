@@ -30,6 +30,12 @@ type Member = {
   beltId: string;
   belt: string;
   status: Status;
+  // The status this member held immediately before being paused — set when
+  // Suspend fires, restored (and cleared) when Reactivate fires. Requires a
+  // `previous_status` column server-side and a matching `previousStatus`
+  // field on the User type (see /src/types) — null for members who've
+  // never been paused.
+  previousStatus: Status | null;
   registeredAt: string;
   photoUrl: string;
 };
@@ -65,6 +71,7 @@ function toMembers(users: User[], belts: Belt[]): Member[] {
       beltId: belt?.id ?? '',
       belt: belt?.name ?? 'White',
       status: u.status,
+      previousStatus: (u as { previousStatus?: Status | null }).previousStatus ?? null,
       registeredAt: u.createdAt,
       photoUrl: u.photoUrl ?? '',
     };
@@ -82,6 +89,7 @@ const STATUS_COLORS: Record<Member['status'], string> = {
   active:    '#2ECC71',
   graduated: '#3498DB',
   serving:   '#9B59B6',
+  served:    '#1ABC9C',
   paused:    '#F39C12',
   withdrawn: 'rgba(255,255,255,0.4)',
 };
@@ -128,8 +136,9 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
   const [promotingSave, setPromotingSave] = useState<string | null>(null); // member id currently saving
   const [promoteError,  setPromoteError]  = useState<string | null>(null);
 
-  // Real: calls PATCH /api/admin/users/[id]/status. Shared by Decline,
-  // Suspend, Reactivate, and Mark Serving — all just status transitions.
+  // Real: calls PATCH /api/admin/users/[id]/status. Shared by Withdraw,
+  // Suspend, Reactivate, Mark Serving, and End Service — all just status
+  // transitions.
   const [statusSaving, setStatusSaving] = useState<string | null>(null); // member id currently saving
   const [statusError,  setStatusError]  = useState<string | null>(null);
 
@@ -206,14 +215,22 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     }
   };
 
-  // Real: all four call PATCH /api/admin/users/[id]/status. Local state
-  // only updates after the request succeeds.
-  const setMemberStatus = async (id: string, status: Member['status']) => {
+  // Real: all status actions call PATCH /api/admin/users/[id]/status.
+  // `previousStatus` is only meaningful when transitioning INTO 'paused' —
+  // it's what lets Reactivate restore the member's actual prior status
+  // instead of always resetting to 'active'. Local state only updates
+  // after the request succeeds.
+  const setMemberStatus = async (id: string, status: Member['status'], previousStatus?: Member['status']) => {
     setStatusSaving(id);
     setStatusError(null);
     try {
-      await updateMemberStatus(id, status);
-      updateMember(id, { status });
+      await updateMemberStatus(id, status, previousStatus);
+      updateMember(id, {
+        status,
+        // Mirror the route's own clearing rule: only 'paused' keeps a
+        // previousStatus value, every other transition clears it.
+        previousStatus: status === 'paused' ? (previousStatus ?? null) : null,
+      });
     } catch (err) {
       setStatusError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
@@ -221,10 +238,27 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     }
   };
 
-  const declineMember    = (id: string) => setMemberStatus(id, 'withdrawn');
-  const reactivateMember = (id: string) => setMemberStatus(id, 'active');
-  const suspendMember    = (id: string) => setMemberStatus(id, 'paused');
-  const markServing      = (id: string) => setMemberStatus(id, 'serving');
+  const declineMember  = (id: string) => setMemberStatus(id, 'withdrawn'); // pending -> withdrawn
+  const withdrawMember = (id: string) => setMemberStatus(id, 'withdrawn'); // active -> withdrawn
+  const markServing    = (id: string) => setMemberStatus(id, 'serving');  // graduated -> serving
+  const endService     = (id: string) => setMemberStatus(id, 'served');   // serving -> served
+
+  // Suspend snapshots whatever status the member is in right now, so
+  // Reactivate knows what to restore later.
+  const suspendMember = (id: string) => {
+    const m = members.find((mm) => mm.id === id);
+    if (!m) return;
+    setMemberStatus(id, 'paused', m.status);
+  };
+
+  // Restores the member's status from before they were paused (Active,
+  // Serving, whatever it was) instead of always resetting to 'active'.
+  // Falls back to 'active' for members paused before this tracking existed.
+  const reactivateMember = (id: string) => {
+    const m = members.find((mm) => mm.id === id);
+    const target = m?.previousStatus ?? 'active';
+    setMemberStatus(id, target);
+  };
 
   // Generates something easy to say out loud and retype correctly (two
   // short words + a number), rather than the admin inventing one on the
@@ -767,6 +801,7 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
           <option value="active">Active</option>
           <option value="graduated">Graduated</option>
           <option value="serving">Serving</option>
+          <option value="served">Served</option>
           <option value="paused">Paused</option>
           <option value="withdrawn">Withdrawn</option>
         </select>
@@ -1112,7 +1147,7 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                   </>
                 )}
 
-                {/* Active — Promote belt */}
+                {/* Active — Promote belt, Withdraw, Suspend */}
                 {selectedMember.status === 'active' && (
                   <>
                     {!promoting ? (
@@ -1162,6 +1197,14 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                     >
                       {statusSaving === selectedMember.id ? 'Saving...' : 'Suspend Member'}
                     </button>
+                    <button
+                      className="admin-btn-danger"
+                      style={{ width: '100%' }}
+                      onClick={() => withdrawMember(selectedMember.id)}
+                      disabled={statusSaving === selectedMember.id}
+                    >
+                      {statusSaving === selectedMember.id ? 'Saving...' : '✕ Withdraw Member'}
+                    </button>
                   </>
                 )}
 
@@ -1177,19 +1220,43 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                   </button>
                 )}
 
-                {/* Serving — can still be suspended if needed */}
+                {/* Serving — End Service, or Suspend if needed */}
                 {selectedMember.status === 'serving' && (
-                  <button
-                    className="admin-btn-ghost"
-                    style={{ width: '100%' }}
-                    onClick={() => suspendMember(selectedMember.id)}
-                    disabled={statusSaving === selectedMember.id}
-                  >
-                    {statusSaving === selectedMember.id ? 'Saving...' : 'Suspend Member'}
-                  </button>
+                  <>
+                    <button
+                      className="admin-btn-gold"
+                      style={{ width: '100%' }}
+                      onClick={() => endService(selectedMember.id)}
+                      disabled={statusSaving === selectedMember.id}
+                    >
+                      {statusSaving === selectedMember.id ? 'Saving...' : '● End Service'}
+                    </button>
+                    <button
+                      className="admin-btn-ghost"
+                      style={{ width: '100%' }}
+                      onClick={() => suspendMember(selectedMember.id)}
+                      disabled={statusSaving === selectedMember.id}
+                    >
+                      {statusSaving === selectedMember.id ? 'Saving...' : 'Suspend Member'}
+                    </button>
+                  </>
                 )}
 
-                {/* Paused — Reactivate */}
+                {/* Served — deactivated by default; admin can restore access at their
+    discretion if they want this member to keep using the tutorials portal */}
+{selectedMember.status === 'served' && (
+  <button
+    className="admin-btn-ghost"
+    style={{ width: '100%' }}
+    onClick={() => setMemberStatus(selectedMember.id, 'serving')}
+    disabled={statusSaving === selectedMember.id}
+  >
+    {statusSaving === selectedMember.id ? 'Saving...' : '↺ Restore Access'}
+  </button>
+)}
+
+                {/* Paused — Reactivate (restores whatever status they held
+                    before being paused — Active, Serving, etc.) */}
                 {selectedMember.status === 'paused' && (
                   <button
                     className="admin-btn-gold"

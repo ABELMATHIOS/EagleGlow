@@ -3,23 +3,28 @@
 import { useState } from 'react';
 import { Tutorial, TutorialCategory, Belt } from '@/src/types';
 import { createTutorial, updateTutorial, deleteTutorial as deleteTutorialAction } from '@/src/lib/admin-action';
+import { parseYoutubeUrl, toCanonicalYoutubeUrl } from '@/src/lib/youtube';
 import TutorialsIndex from '@/src/components/members/TutorialsIndex'; // TODO: fix path to match your repo
 import TutorialDetail from '@/src/components/members/TutorialDetail'; // TODO: fix path to match your repo
 
-const CATEGORIES: TutorialCategory[] = ['general', 'taolu', 'kicks', 'sanda', 'gymnastics', 'flexibility'];
+// 'general' intentionally excluded — not currently used, even though the
+// shared TutorialCategory type still permits it.
+const CATEGORIES: Exclude<TutorialCategory, 'general'>[] = ['taolu', 'kicks', 'sanda', 'gymnastics', 'flexibility', 'instructor_reference'];
+
+const CATEGORY_LABELS: Record<Exclude<TutorialCategory, 'general'>, string> = {
+  taolu: 'Taolu',
+  kicks: 'Kicks',
+  sanda: 'Sanda',
+  gymnastics: 'Gymnastics',
+  flexibility: 'Flexibility',
+  instructor_reference: 'Instructor Reference',
+};
 
 function formatDuration(minutes?: number): string {
   if (!minutes) return '—';
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:00` : `${m}:00`;
-}
-
-function youtubeIdFromUrl(url: string): string | undefined {
-  const trimmed = url.trim();
-  if (!trimmed) return undefined;
-  const match = trimmed.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{6,})/);
-  return match ? match[1] : trimmed; // allow pasting a bare video ID too
 }
 
 type Draft = {
@@ -44,7 +49,7 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
   const EMPTY_DRAFT: Draft = {
     beltId: belts[0]?.id ?? '',
     title: '',
-    category: 'general',
+    category: 'taolu',
     durationMinutes: '',
     videoUrl: '',
     description: '',
@@ -124,14 +129,15 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
     setSaving(true);
     setSaveError(null);
     try {
-      const videoId = youtubeIdFromUrl(draft.videoUrl);
+      const ref = draft.videoUrl.trim() ? parseYoutubeUrl(draft.videoUrl) : null;
+      const videoUrl = ref ? toCanonicalYoutubeUrl(ref) : null;
 
       const payload = {
         beltId: draft.beltId,
         title: draft.title.trim(),
         category: draft.category,
         durationMinutes: draft.durationMinutes ? Number(draft.durationMinutes) : null,
-        videoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
+        videoUrl,
         description: draft.description.trim() || null,
         published: draft.published,
       };
@@ -274,6 +280,9 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
             currentUserId={null}
             completedTutorialIds={[]}
             onBack={() => setPreviewView('dashboard')}
+            // Admin preview always views as Black Belt so instructor_reference
+            // content — otherwise invisible to regular members — can be QA'd.
+            viewerBeltSlug="black"
           />
         )}
       </>
@@ -582,8 +591,13 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
               <div>
                 <label className="field-label">Category</label>
                 <select className="admin-select" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value as TutorialCategory }))}>
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
                 </select>
+                {draft.category === 'instructor_reference' && (
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10.5, color: 'rgba(255,255,255,0.3)', margin: '4px 0 0' }}>
+                    Only visible to Black Belt members — kept separate from real exam curriculum.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -592,15 +606,15 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
               </div>
 
               <div>
-                <label className="field-label">YouTube URL or Video ID — optional</label>
+                <label className="field-label">YouTube Video or Playlist URL — optional</label>
                 <input
                   className="admin-input"
-                  placeholder="https://youtube.com/watch?v=... or just the ID"
+                  placeholder="Paste a video link, playlist link, or bare video ID"
                   value={draft.videoUrl}
                   onChange={(e) => setDraft((d) => ({ ...d, videoUrl: e.target.value }))}
                 />
                 <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10.5, color: 'rgba(255,255,255,0.3)', margin: '4px 0 0' }}>
-                  Leave blank for tutorials the instructor teaches in person.
+                  Supports single videos and full playlists. Leave blank for tutorials taught in person.
                 </p>
               </div>
 

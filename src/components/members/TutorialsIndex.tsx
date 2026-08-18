@@ -34,7 +34,10 @@ export default function TutorialsIndex({ tutorials, belts, userBeltOrder, comple
   // A member can see their current belt and everything below it — not belts
   // above their current level.
   const BELT_CARDS = belts.map((b) => {
-    const beltTutorials = tutorials.filter((t) => t.beltId === b.id);
+    // instructor_reference isn't real exam curriculum — excluded from these
+    // counts for the same reason TutorialDetail's progress stat excludes it,
+    // so belt-card totals/percentages only reflect gradeable material.
+    const beltTutorials = tutorials.filter((t) => t.beltId === b.id && t.category !== 'instructor_reference');
     return {
       name: b.name,
       slug: b.slug,

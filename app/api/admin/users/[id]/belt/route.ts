@@ -15,10 +15,6 @@ export async function PATCH(
       return NextResponse.json({ error: "beltId is required" }, { status: 400 });
     }
 
-    // Step 1 — verify the CALLER is an admin, using the regular server
-    // client (respects RLS: they can only read their own row, which is
-    // exactly what we need to check their own role). Same pattern as the
-    // approve route.
     const supabase = await createClient();
     const {
       data: { user: caller },
@@ -48,8 +44,6 @@ export async function PATCH(
 
     const adminSupabase = createAdminClient();
 
-    // Confirm the target belt actually exists before writing the FK —
-    // avoids silently storing a bad belt_id if the client sent a stale id.
     const { data: belt, error: beltError } = await adminSupabase
       .from("belts")
       .select("id, sort_order")
@@ -64,8 +58,6 @@ export async function PATCH(
       );
     }
 
-    // Reaching the highest belt (max sort_order) = graduated, per project
-    // rule — flip status automatically, same as the old mock confirmPromote.
     const { data: maxOrderRow } = await adminSupabase
       .from("belts")
       .select("sort_order")

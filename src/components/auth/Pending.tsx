@@ -26,6 +26,11 @@ const CONTENT: Record<string, { icon: string; title: string; body: string }> = {
     title: 'Registration Declined',
     body: 'Your registration was not approved. Please contact the admin if you believe this was a mistake.',
   },
+  served: {
+    icon: '🎖',
+    title: 'Service Term Ended',
+    body: 'Your time as an assistant instructor has come to an end — thank you for your service. Contact the admin if you have questions or would like to continue training.',
+  },
 };
 
 export default function Pending({ status }: PendingProps) {
