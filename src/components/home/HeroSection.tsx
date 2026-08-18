@@ -30,7 +30,7 @@ export default function HeroSection({ videoUrl }: HeroSectionProps) {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            opacity: 0.4,
+            opacity: 1,
           }}
         >
           <source src={videoUrl || "/videos/hero.mp4"} type="video/mp4" />
@@ -39,11 +39,11 @@ export default function HeroSection({ videoUrl }: HeroSectionProps) {
         {/* Overlays */}
         <div style={{
           position: "absolute", inset: 0,
-          background: "linear-gradient(135deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.75) 100%)",
+          background: "linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.4) 100%)",
         }} />
         <div style={{
           position: "absolute", inset: 0,
-          background: "linear-gradient(180deg, transparent 60%, #0a0a0a 100%)",
+          background: "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 35%, #0a0a0a 100%)",
         }} />
 
         {/* Gold left accent */}
@@ -65,9 +65,10 @@ export default function HeroSection({ videoUrl }: HeroSectionProps) {
             {/* Badge */}
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8,
-              background: "rgba(201,168,76,0.08)",
-              border: "0.5px solid rgba(201,168,76,0.25)",
+              background: "rgba(0,0,0,0.45)",
+              border: "0.5px solid rgba(201,168,76,0.35)",
               borderRadius: 100, padding: "6px 16px", marginBottom: 24,
+              backdropFilter: "blur(4px)",
             }}>
               <span style={{
                 width: 6, height: 6, borderRadius: "50%",
@@ -89,6 +90,7 @@ export default function HeroSection({ videoUrl }: HeroSectionProps) {
               letterSpacing: "-0.02em",
               textTransform: "uppercase",
               margin: "0 0 20px 0",
+              textShadow: "0 4px 20px rgba(0,0,0,0.75), 0 2px 6px rgba(0,0,0,0.9)",
             }}>
               <span style={{ display: "block", color: "rgba(255,255,255,0.9)" }}>WELCOME TO</span>
               <span style={{ display: "block", color: "#C9A84C" }}>EAGLE GLOW</span>
@@ -102,6 +104,7 @@ export default function HeroSection({ videoUrl }: HeroSectionProps) {
               textTransform: "uppercase",
               color: "rgba(255,255,255,0.9)",
               margin: "0 0 40px 0",
+              textShadow: "0 2px 10px rgba(0,0,0,0.7), 0 1px 4px rgba(0,0,0,0.9)",
             }}>
               Sight · Mind · Body
             </p>
