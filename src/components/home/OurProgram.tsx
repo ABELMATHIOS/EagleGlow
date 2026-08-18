@@ -13,7 +13,6 @@ const programs = [
     description:
       "Our Wushu program builds strength and discipline through Taolu (Forms) and Sanda (Sparring), blending ancient tradition with modern training methods.",
     disciplines: ["Taolu", "Sanda", "Sparring"],
-    note: "We also provide mentorship to support your personal growth and journey.",
   },
   {
     id: "fitness",
@@ -23,7 +22,6 @@ const programs = [
     description:
       "Our Fitness program brings energy and fun through Tae Bo, Zumba, and Aerobics — helping you stay active, strong, and motivated every session.",
     disciplines: ["Zumba", "Tae Bo", "Aerobics"],
-    note: null,
   },
 ];
 
@@ -200,7 +198,6 @@ export default function OurProgram() {
               {/* Discipline tags */}
               <div style={{
                 display: "flex", flexWrap: "wrap", gap: 8,
-                marginBottom: program.note ? 20 : 0,
               }}>
                 {program.disciplines.map((d) => (
                   <span key={d} style={{
@@ -215,30 +212,28 @@ export default function OurProgram() {
                 ))}
               </div>
 
-              {/* Mentorship note — Wushu only */}
-              {program.note && (
-                <div style={{
-                  display: "flex", alignItems: "flex-start", gap: 10,
-                  background: "rgba(201,168,76,0.06)",
-                  border: "0.5px solid rgba(201,168,76,0.15)",
-                  borderRadius: 10, padding: "12px 14px",
-                  marginTop: 20,
-                }}>
-                  <div style={{ flexShrink: 0, marginTop: 1 }}>
-                    <Handshake size={16} color="#C9A84C" />
-                  </div>
-                  <p style={{
-                    fontSize: 12,
-                    color: "rgba(255,255,255,0.45)",
-                    lineHeight: 1.6, margin: 0,
-                  }}>
-                    {program.note}
-                  </p>
-                </div>
-              )}
-
             </div>
           ))}
+        </div>
+
+        {/* Mentorship note — applies to both programs, shown once for both */}
+        <div style={{
+          display: "flex", alignItems: "flex-start", gap: 10,
+          background: "rgba(201,168,76,0.06)",
+          border: "0.5px solid rgba(201,168,76,0.15)",
+          borderRadius: 10, padding: "14px 18px",
+          marginTop: 24, maxWidth: 640, marginLeft: "auto", marginRight: "auto",
+        }}>
+          <div style={{ flexShrink: 0, marginTop: 1 }}>
+            <Handshake size={16} color="#C9A84C" />
+          </div>
+          <p style={{
+            fontSize: 12.5,
+            color: "rgba(255,255,255,0.45)",
+            lineHeight: 1.6, margin: 0, textAlign: "left",
+          }}>
+            We also provide mentorship to support your personal growth and journey — across every program.
+          </p>
         </div>
 
         {/* CTA */}
