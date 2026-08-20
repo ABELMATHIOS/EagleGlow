@@ -19,9 +19,10 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const emailValid = EMAIL_RE.test(email);
+  const emailShowError = email.length > 0 && !emailValid;
   const canSubmit = emailValid && password.length > 0 && status !== 'submitting';
 
-  const handleSubmit = async (e: React.MouseEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     setStatus('submitting');
@@ -65,6 +66,16 @@ export default function Login() {
           border-color: rgba(201,168,76,0.4);
           background: rgba(201,168,76,0.04);
         }
+        .login-input.invalid {
+          border-color: rgba(239,68,68,0.5);
+        }
+
+        .field-error {
+          font-family: Inter, sans-serif;
+          font-size: 11.5px;
+          color: #EF4444;
+          margin: 0;
+        }
 
         .login-btn {
           width: 100%;
@@ -84,7 +95,8 @@ export default function Login() {
         .login-btn:hover {
           background: #d9b85a;
           transform: translateY(-1px);
-       .login-btn:active {
+        }
+        .login-btn:active {
           transform: translateY(0);
         }
         .login-btn:disabled {
@@ -226,8 +238,8 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Form */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Form — a real <form> so Enter submits it, not just clicking the button */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Email */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -237,13 +249,16 @@ export default function Login() {
                 letterSpacing: '0.12em', textTransform: 'uppercase',
               }}>Email</label>
               <input
-                className="login-input"
+                className={`login-input${emailShowError ? ' invalid' : ''}`}
                 type="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
               />
+              {emailShowError && (
+                <p className="field-error">Enter a valid email address.</p>
+              )}
             </div>
 
             {/* Password */}
@@ -269,6 +284,7 @@ export default function Login() {
                   style={{ paddingRight: 56 }}
                 />
                 <button
+                  type="button"
                   className="show-toggle"
                   onClick={() => setShowPassword(!showPassword)}
                   style={{
@@ -288,12 +304,12 @@ export default function Login() {
 
             {/* Login button */}
             <div style={{ marginTop: 8 }}>
-              <button className="login-btn" onClick={handleSubmit} disabled={!canSubmit}>
+              <button type="submit" className="login-btn" disabled={!canSubmit}>
                 {status === 'submitting' ? 'Signing In…' : 'Sign In'}
               </button>
             </div>
 
-          </div>
+          </form>
 
           {/* Divider */}
           <div style={{

@@ -97,6 +97,11 @@ const STATUS_COLORS: Record<Member['status'], string> = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/;
 
+// Statuses that only make sense when a member is at the top belt — if a
+// member in one of these gets downgraded below the top belt, their status
+// reverts to 'active' (mirrors the belt route's own server-side logic).
+const TOP_BELT_ONLY_STATUSES: Status[] = ['graduated', 'serving', 'served'];
+
 // Every field, in export order. Health notes included intentionally — keep the
 // downloaded file somewhere only the coach/admin controls.
 const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
@@ -135,6 +140,14 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
   // loading/error pattern below.
   const [promotingSave, setPromotingSave] = useState<string | null>(null); // member id currently saving
   const [promoteError,  setPromoteError]  = useState<string | null>(null);
+
+  // Downgrade Belt — same underlying endpoint as Promote (it just accepts
+  // any beltId), kept as separate state/UI so it reads as a deliberate,
+  // distinct action rather than a variant of Promote.
+  const [downgrading,      setDowngrading]      = useState(false);
+  const [downgradeTarget,  setDowngradeTarget]  = useState(''); // belt id
+  const [downgradingSave,  setDowngradingSave]  = useState<string | null>(null);
+  const [downgradeError,   setDowngradeError]   = useState<string | null>(null);
 
   // Real: calls PATCH /api/admin/users/[id]/status. Shared by Withdraw,
   // Suspend, Reactivate, Mark Serving, and End Service — all just status
@@ -182,6 +195,8 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     const isSame = id === selected;
     setSelected(isSame ? null : id);
     setPromoting(false);
+    setDowngrading(false);
+    setDowngradeError(null);
     setEditingContact(false);
     setNewNote('');
     setApproveError(null);
@@ -326,6 +341,42 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
       setPromoteError(err instanceof Error ? err.message : 'Failed to update belt');
     } finally {
       setPromotingSave(null);
+    }
+  };
+
+  // Downgrade Belt — defaults to the belt immediately below the member's
+  // current one, same "closest first" convention as Promote.
+  const startDowngrade = (currentBeltId: string) => {
+    const idx = belts.findIndex((b) => b.id === currentBeltId);
+    const lower = idx > 0 ? belts[idx - 1] : undefined;
+    setDowngradeTarget(lower?.id ?? '');
+    setDowngradeError(null);
+    setDowngrading(true);
+  };
+
+  // Same PATCH /api/admin/users/[id]/belt endpoint as Promote — the route
+  // itself decides the status side-effect (reverting graduated/serving/
+  // served back to active when the new belt isn't the top belt). We mirror
+  // that same decision here so local state matches what the server did.
+  const confirmDowngrade = async (id: string) => {
+    if (!downgradeTarget) return;
+    setDowngradingSave(id);
+    setDowngradeError(null);
+    try {
+      await promoteBelt(id, downgradeTarget);
+      const newBelt = beltById.get(downgradeTarget);
+      const isTopBelt = belts.length > 0 && belts[belts.length - 1].id === downgradeTarget;
+      const patch: Partial<Member> = { beltId: downgradeTarget, belt: newBelt?.name ?? '' };
+      const m = members.find((mm) => mm.id === id);
+      if (!isTopBelt && m && TOP_BELT_ONLY_STATUSES.includes(m.status)) {
+        patch.status = 'active';
+      }
+      updateMember(id, patch);
+      setDowngrading(false);
+    } catch (err) {
+      setDowngradeError(err instanceof Error ? err.message : 'Failed to update belt');
+    } finally {
+      setDowngradingSave(null);
     }
   };
 
@@ -1147,7 +1198,7 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                   </>
                 )}
 
-                {/* Active — Promote belt, Withdraw, Suspend */}
+                {/* Active — Promote belt, Downgrade belt, Withdraw, Suspend */}
                 {selectedMember.status === 'active' && (
                   <>
                     {!promoting ? (
@@ -1189,6 +1240,49 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                         {promoteError && <p className="field-error">{promoteError}</p>}
                       </div>
                     )}
+
+                    {/* Downgrade Belt — hidden entirely at White (belts[0]),
+                        since there's nothing lower to move to. */}
+                    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+                      !downgrading ? (
+                        <button
+                          className="admin-btn-ghost"
+                          style={{ width: '100%' }}
+                          onClick={() => startDowngrade(selectedMember.beltId)}
+                        >
+                          ↓ Downgrade Belt
+                        </button>
+                      ) : (
+                        <div>
+                          <select
+                            className="admin-select"
+                            style={{ width: '100%', marginBottom: 8 }}
+                            value={downgradeTarget}
+                            onChange={(e) => setDowngradeTarget(e.target.value)}
+                          >
+                            {belts
+                              .slice(0, belts.findIndex((b) => b.id === selectedMember.beltId))
+                              .reverse()
+                              .map((b) => (
+                                <option key={b.id} value={b.id}>{b.name} Belt</option>
+                              ))}
+                          </select>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              className="admin-btn-danger"
+                              style={{ flex: 1 }}
+                              onClick={() => confirmDowngrade(selectedMember.id)}
+                              disabled={downgradingSave === selectedMember.id}
+                            >
+                              {downgradingSave === selectedMember.id ? 'Saving...' : 'Confirm Downgrade'}
+                            </button>
+                            <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setDowngrading(false)}>Cancel</button>
+                          </div>
+                          {downgradeError && <p className="field-error">{downgradeError}</p>}
+                        </div>
+                      )
+                    )}
+
                     <button
                       className="admin-btn-ghost"
                       style={{ width: '100%' }}
@@ -1208,19 +1302,61 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                   </>
                 )}
 
-                {/* Graduated — offer Serving */}
+                {/* Graduated — offer Serving, Downgrade Belt */}
                 {selectedMember.status === 'graduated' && (
-                  <button
-                    className="admin-btn-gold"
-                    style={{ width: '100%' }}
-                    onClick={() => markServing(selectedMember.id)}
-                    disabled={statusSaving === selectedMember.id}
-                  >
-                    {statusSaving === selectedMember.id ? 'Saving...' : '★ Mark as Serving (Assistant Instructor)'}
-                  </button>
+                  <>
+                    <button
+                      className="admin-btn-gold"
+                      style={{ width: '100%' }}
+                      onClick={() => markServing(selectedMember.id)}
+                      disabled={statusSaving === selectedMember.id}
+                    >
+                      {statusSaving === selectedMember.id ? 'Saving...' : '★ Mark as Serving (Assistant Instructor)'}
+                    </button>
+
+                    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+                      !downgrading ? (
+                        <button
+                          className="admin-btn-ghost"
+                          style={{ width: '100%' }}
+                          onClick={() => startDowngrade(selectedMember.beltId)}
+                        >
+                          ↓ Downgrade Belt
+                        </button>
+                      ) : (
+                        <div>
+                          <select
+                            className="admin-select"
+                            style={{ width: '100%', marginBottom: 8 }}
+                            value={downgradeTarget}
+                            onChange={(e) => setDowngradeTarget(e.target.value)}
+                          >
+                            {belts
+                              .slice(0, belts.findIndex((b) => b.id === selectedMember.beltId))
+                              .reverse()
+                              .map((b) => (
+                                <option key={b.id} value={b.id}>{b.name} Belt</option>
+                              ))}
+                          </select>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              className="admin-btn-danger"
+                              style={{ flex: 1 }}
+                              onClick={() => confirmDowngrade(selectedMember.id)}
+                              disabled={downgradingSave === selectedMember.id}
+                            >
+                              {downgradingSave === selectedMember.id ? 'Saving...' : 'Confirm Downgrade'}
+                            </button>
+                            <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setDowngrading(false)}>Cancel</button>
+                          </div>
+                          {downgradeError && <p className="field-error">{downgradeError}</p>}
+                        </div>
+                      )
+                    )}
+                  </>
                 )}
 
-                {/* Serving — End Service, or Suspend if needed */}
+                {/* Serving — End Service, Downgrade Belt, or Suspend if needed */}
                 {selectedMember.status === 'serving' && (
                   <>
                     <button
@@ -1231,6 +1367,47 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                     >
                       {statusSaving === selectedMember.id ? 'Saving...' : '● End Service'}
                     </button>
+
+                    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+                      !downgrading ? (
+                        <button
+                          className="admin-btn-ghost"
+                          style={{ width: '100%' }}
+                          onClick={() => startDowngrade(selectedMember.beltId)}
+                        >
+                          ↓ Downgrade Belt
+                        </button>
+                      ) : (
+                        <div>
+                          <select
+                            className="admin-select"
+                            style={{ width: '100%', marginBottom: 8 }}
+                            value={downgradeTarget}
+                            onChange={(e) => setDowngradeTarget(e.target.value)}
+                          >
+                            {belts
+                              .slice(0, belts.findIndex((b) => b.id === selectedMember.beltId))
+                              .reverse()
+                              .map((b) => (
+                                <option key={b.id} value={b.id}>{b.name} Belt</option>
+                              ))}
+                          </select>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              className="admin-btn-danger"
+                              style={{ flex: 1 }}
+                              onClick={() => confirmDowngrade(selectedMember.id)}
+                              disabled={downgradingSave === selectedMember.id}
+                            >
+                              {downgradingSave === selectedMember.id ? 'Saving...' : 'Confirm Downgrade'}
+                            </button>
+                            <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setDowngrading(false)}>Cancel</button>
+                          </div>
+                          {downgradeError && <p className="field-error">{downgradeError}</p>}
+                        </div>
+                      )
+                    )}
+
                     <button
                       className="admin-btn-ghost"
                       style={{ width: '100%' }}
@@ -1243,16 +1420,59 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                 )}
 
                 {/* Served — deactivated by default; admin can restore access at their
-    discretion if they want this member to keep using the tutorials portal */}
+    discretion if they want this member to keep using the tutorials portal.
+    Downgrade Belt is also available here, same as Graduated/Serving. */}
 {selectedMember.status === 'served' && (
-  <button
-    className="admin-btn-ghost"
-    style={{ width: '100%' }}
-    onClick={() => setMemberStatus(selectedMember.id, 'serving')}
-    disabled={statusSaving === selectedMember.id}
-  >
-    {statusSaving === selectedMember.id ? 'Saving...' : '↺ Restore Access'}
-  </button>
+  <>
+    <button
+      className="admin-btn-ghost"
+      style={{ width: '100%' }}
+      onClick={() => setMemberStatus(selectedMember.id, 'serving')}
+      disabled={statusSaving === selectedMember.id}
+    >
+      {statusSaving === selectedMember.id ? 'Saving...' : '↺ Restore Access'}
+    </button>
+
+    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+      !downgrading ? (
+        <button
+          className="admin-btn-ghost"
+          style={{ width: '100%' }}
+          onClick={() => startDowngrade(selectedMember.beltId)}
+        >
+          ↓ Downgrade Belt
+        </button>
+      ) : (
+        <div>
+          <select
+            className="admin-select"
+            style={{ width: '100%', marginBottom: 8 }}
+            value={downgradeTarget}
+            onChange={(e) => setDowngradeTarget(e.target.value)}
+          >
+            {belts
+              .slice(0, belts.findIndex((b) => b.id === selectedMember.beltId))
+              .reverse()
+              .map((b) => (
+                <option key={b.id} value={b.id}>{b.name} Belt</option>
+              ))}
+          </select>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="admin-btn-danger"
+              style={{ flex: 1 }}
+              onClick={() => confirmDowngrade(selectedMember.id)}
+              disabled={downgradingSave === selectedMember.id}
+            >
+              {downgradingSave === selectedMember.id ? 'Saving...' : 'Confirm Downgrade'}
+            </button>
+            <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setDowngrading(false)}>Cancel</button>
+          </div>
+          {downgradeError && <p className="field-error">{downgradeError}</p>}
+        </div>
+      )
+    )}
+  </>
 )}
 
                 {/* Paused — Reactivate (restores whatever status they held

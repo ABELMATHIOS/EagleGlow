@@ -6,7 +6,7 @@ import type { Belt } from "@/src/types";
 import { createClient } from "@/src/lib/supabase/client";
 import { uploadProfilePhoto, deleteProfilePhoto } from "@/src/lib/profile-upload";
 import type { CurrentUserProfile } from "@/src/lib/get-profile";
-
+import Link from 'next/link';
 type ProfileProps = {
   user: CurrentUserProfile;
   belts: Belt[];
@@ -422,7 +422,21 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
       `}</style>
 
       <div style={{ maxWidth: "900px", margin: "0 auto", padding: "40px 20px 80px" }}>
-
+        <Link
+  href="/dashboard"
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    fontFamily: "'Inter', sans-serif",
+    color: "rgba(255,255,255,0.45)",
+    fontSize: "13px",
+    textDecoration: "none",
+    marginBottom: "28px",
+  }}
+>
+  ← Back to Dashboard
+</Link>
         {/* ── HEADER CARD ── */}
         <div
           className="fade-up"

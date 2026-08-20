@@ -40,7 +40,7 @@ const STATUS_COLOR: Record<Status, string> = {
   serving:   '#9B59B6',
   paused:    '#F39C12',
   withdrawn: 'rgba(255,255,255,0.4)',
-  served:    '#1ABC9C',
+  served:    'Served',
 };
 
 function SectionLabel({ text }: { text: string }) {
@@ -63,6 +63,10 @@ function SectionLabel({ text }: { text: string }) {
 export default function Dashboard({ user, progress, belts }: { user: DashboardUser; progress: DashboardProgress; belts: Belt[] }) {
   const firstName = user.name.split(' ')[0];
   const currentBelt = belts.find((b) => b.id === user.beltId) ?? belts[0];
+  // Black belt's stored color is near-black, which is invisible against
+  // this dark UI (the belt dot and progress bar would both disappear) —
+  // gold reads clearly and fits as the top-rank accent color.
+  const displayColor = currentBelt.name === 'Black' ? '#C9A84C' : currentBelt.color;
   const joinDate = new Date(user.createdAt).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',

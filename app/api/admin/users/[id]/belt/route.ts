@@ -67,8 +67,30 @@ export async function PATCH(
 
     const isTopBelt = maxOrderRow && belt.sort_order === maxOrderRow.sort_order;
 
+    // Fetch the target member's current status — needed to decide whether
+    // a belt change (in either direction) should also change their status.
+    const { data: targetUser, error: targetUserError } = await adminSupabase
+      .from("users")
+      .select("status")
+      .eq("id", targetUserId)
+      .single();
+
+    if (targetUserError || !targetUser) {
+      console.error("[belt route] target user lookup failed", { targetUserId, targetUserError });
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
     const update: { belt_id: string; status?: string } = { belt_id: beltId };
-    if (isTopBelt) update.status = "graduated";
+
+    if (isTopBelt) {
+      // Promoted to (or already assigned) the top belt — mark Graduated.
+      update.status = "graduated";
+    } else if (["graduated", "serving", "served"].includes(targetUser.status)) {
+      // Downgraded below the top belt while in a top-belt-only status —
+      // those statuses only make sense at the top belt, so fall back to
+      // Active.
+      update.status = "active";
+    }
 
     const { data, error } = await adminSupabase
       .from("users")

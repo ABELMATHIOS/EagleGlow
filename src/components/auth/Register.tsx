@@ -75,7 +75,7 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
     requiredFieldsFilled &&
     submitStatus !== 'submitting';
 
-  const handleSubmit = async (e: React.MouseEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
@@ -445,7 +445,7 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
                 {/* Registration type selector */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -750,6 +750,7 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                     />
                     <button
                       className="show-toggle"
+                      type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       style={{
                         position: 'absolute', right: 14,
@@ -780,6 +781,7 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                     />
                     <button
                       className="show-toggle"
+                      type="button"
                       onClick={() => setShowConfirm(!showConfirm)}
                       style={{
                         position: 'absolute', right: 14,
@@ -827,13 +829,23 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                     fontSize: 12, lineHeight: 1.6,
                   }}>
                     I agree to the{' '}
-                    <span style={{ color: '#C9A84C', cursor: 'pointer' }}>
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      style={{ color: '#C9A84C', cursor: 'pointer' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       Terms & Conditions
-                    </span>
+                    </Link>
                     {' '}and{' '}
-                    <span style={{ color: '#C9A84C', cursor: 'pointer' }}>
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      style={{ color: '#C9A84C', cursor: 'pointer' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       Privacy Policy
-                    </span>
+                    </Link>
                   </p>
                 </div>
 
@@ -841,14 +853,14 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                 <div style={{ marginTop: 8 }}>
                   <button
                     className="reg-btn"
-                    onClick={handleSubmit}
+                    type="submit"
                     disabled={!canSubmit}
                   >
                     {submitStatus === 'submitting' ? 'Creating Account…' : 'Create Account'}
                   </button>
                 </div>
 
-              </div>
+              </form>
 
               {/* Divider */}
               <div style={{
