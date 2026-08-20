@@ -7,10 +7,13 @@ import { getProgressSummary } from '@/src/lib/tutorial-progress';
 export default async function DashboardPage() {
   const user = await getCurrentUser();
 
-  // Belt-and-braces check — middleware already handles this redirect, but
-  // this keeps the page safe to render even if it's ever reached directly.
   if (!user) {
     redirect('/auth/login?redirectTo=/dashboard');
+  }
+
+  // If admin → send to admin page directly
+  if (user.role === 'admin') {
+    redirect('/admin');
   }
 
   const belts = await getBelts();
