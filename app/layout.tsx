@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/src/components/layout/Navbar";
-import Footer from "@/src/components/layout/Footer";
+import ConditionalChrome from "@/src/components/layout/ConditionalChrome";
 
 export const metadata: Metadata = {
   title: "EagleGlow | Wushu & Fitness Center",
@@ -17,9 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-[#0d0d0d] min-h-screen">
-        <Navbar />
-        <main className="pt-[68px]">{children}</main>
-        <Footer />
+        <ConditionalChrome>{children}</ConditionalChrome>
       </body>
     </html>
   );

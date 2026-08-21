@@ -1,4 +1,4 @@
-export type Role             = "guest" | "member" | "admin";
+export type Role             = "guest" | "member" | "admin" | "super_admin";
 export type Status = "pending" | "active" | "graduated" | "serving" | "paused" | "withdrawn" | "served";
 export type RegistrationType = "new" | "training" | "returning";
 export type ClassType        = "wushu" | "fitness";

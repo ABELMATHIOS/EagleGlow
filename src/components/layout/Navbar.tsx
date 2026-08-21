@@ -19,7 +19,7 @@ const navLinks = [
 export default function Navbar() {
   const [isOpen,   setIsOpen]   = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [role,     setRole]     = useState<"guest" | "member" | "admin">("guest");
+  const [role, setRole] = useState<"guest" | "member" | "admin" | "super_admin">("guest");
 
   const pathname  = usePathname();
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -40,8 +40,8 @@ export default function Navbar() {
     return () => { cancelled = true; };
   }, [pathname]);
 
-  const isLoggedIn = role === "member" || role === "admin";
-  const accountHref = role === "admin" ? "/admin" : "/dashboard";
+  const isLoggedIn = role === "member" || role === "admin" || role === "super_admin";
+  const accountHref = (role === "admin" || role === "super_admin") ? "/admin" : "/dashboard";
 
   const handleLogout = async () => {
     await signOut();
@@ -231,8 +231,8 @@ export default function Navbar() {
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 {isLoggedIn ? (
                   <>
-                    <Link href={accountHref} className="btn-login desktop-only-btn">
-                      {role === "admin" ? "Admin" : "Dashboard"}
+                                        <Link href={accountHref} className="btn-login desktop-only-btn">
+                      {(role === "admin" || role === "super_admin") ? "Admin" : "Dashboard"}
                     </Link>
                     <button onClick={handleLogout} className="btn-login desktop-only-btn" style={{ cursor: "pointer" }}>
                       Logout
@@ -345,8 +345,8 @@ export default function Navbar() {
         }}>
           {isLoggedIn ? (
             <>
-              <Link href={accountHref} className="btn-login" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12 }} onClick={() => setIsOpen(false)}>
-                {role === "admin" ? "Admin" : "Dashboard"}
+                            <Link href={accountHref} className="btn-login" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12 }} onClick={() => setIsOpen(false)}>
+                {(role === "admin" || role === "super_admin") ? "Admin" : "Dashboard"}
               </Link>
               <button onClick={handleLogout} className="btn-login" style={{ flex: 1, justifyContent: "center", padding: "9px 0", fontSize: 12, cursor: "pointer" }}>
                 Logout

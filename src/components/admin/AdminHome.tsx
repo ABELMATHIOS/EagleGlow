@@ -14,6 +14,8 @@ type AdminHomeProps = {
 export default function AdminHome({ initialContent }: AdminHomeProps) {
   const [content, setContent] = useState<HomeContent>(initialContent);
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +43,7 @@ export default function AdminHome({ initialContent }: AdminHomeProps) {
   }
 
   async function removeVideo() {
+    setRemoving(true);
     const oldUrl = content.heroVideoUrl;
     try {
       const updated = await updateHomeContent({ heroVideoUrl: null });
@@ -52,6 +55,9 @@ export default function AdminHome({ initialContent }: AdminHomeProps) {
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Failed to remove video');
+    } finally {
+      setRemoving(false);
+      setConfirmingRemove(false);
     }
   }
 
@@ -67,13 +73,49 @@ export default function AdminHome({ initialContent }: AdminHomeProps) {
         {content.heroVideoUrl ? (
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <video src={content.heroVideoUrl} muted style={{ width: 160, height: 90, objectFit: 'cover', borderRadius: 10 }} />
-            <button
-              type="button"
-              onClick={removeVideo}
-              style={{ background: 'transparent', color: '#E74C3C', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}
-            >
-              Remove
-            </button>
+
+            {!confirmingRemove ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingRemove(true)}
+                style={{ background: 'transparent', color: '#E74C3C', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}
+              >
+                Remove
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+                  Remove this video? This can&apos;t be undone.
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={removeVideo}
+                    disabled={removing}
+                    style={{
+                      background: '#E74C3C', color: '#fff', border: 'none', borderRadius: 8,
+                      padding: '8px 14px', fontSize: 12, fontWeight: 600,
+                      cursor: removing ? 'not-allowed' : 'pointer',
+                      opacity: removing ? 0.6 : 1,
+                    }}
+                  >
+                    {removing ? 'Removing…' : 'Yes, remove'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingRemove(false)}
+                    disabled={removing}
+                    style={{
+                      background: 'transparent', color: 'rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8,
+                      padding: '8px 14px', fontSize: 12, cursor: removing ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div

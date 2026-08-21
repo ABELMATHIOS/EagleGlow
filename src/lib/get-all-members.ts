@@ -47,9 +47,13 @@ function toUser(row: MemberRow): User {
   };
 }
 
-// Admin-only. Verifies the caller is actually an admin (same pattern as the
-// approve route) before using the service-role client to read every member —
-// RLS would otherwise only let a user read their own row.
+const SELECT_COLUMNS =
+  "id, name, email, phone, role, status, registration_type, previous_belt, year_joined, gap_reason, emergency_contact_name, emergency_contact_phone, health_notes, photo_url, belt_id, admin_notes, name_correction_request, created_at";
+
+// Admin-only (admin or super_admin). Verifies the caller before using the
+// service-role client to read every non-admin member — RLS would otherwise
+// only let a user read their own row. Excludes admin/super_admin rows so
+// they never show up in the regular member list or exports.
 export async function getAllMembers(): Promise<User[]> {
   const supabase = await createClient();
   const {
@@ -64,16 +68,65 @@ export async function getAllMembers(): Promise<User[]> {
     .eq("id", caller.id)
     .single();
 
-  if (callerProfile?.role !== "admin") return [];
+  if (callerProfile?.role !== "admin" && callerProfile?.role !== "super_admin") return [];
 
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase
     .from("users")
-    .select(
-      "id, name, email, phone, role, status, registration_type, previous_belt, year_joined, gap_reason, emergency_contact_name, emergency_contact_phone, health_notes, photo_url, belt_id, admin_notes, name_correction_request, created_at"
-    )
+    .select(SELECT_COLUMNS)
+    .not("role", "in", '("admin","super_admin")')
     .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data as MemberRow[]).map(toUser);
+}
+
+// Super_admin-only. Returns everyone with role admin or super_admin — the
+// inverse of getAllMembers() — so a super_admin can see (and revoke) who
+// currently has elevated access.
+export async function getAllAdmins(): Promise<User[]> {
+  const supabase = await createClient();
+  const {
+    data: { user: caller },
+  } = await supabase.auth.getUser();
+
+  if (!caller) return [];
+
+  const { data: callerProfile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", caller.id)
+    .single();
+
+  if (callerProfile?.role !== "super_admin") return [];
+
+  const adminSupabase = createAdminClient();
+  const { data, error } = await adminSupabase
+    .from("users")
+    .select(SELECT_COLUMNS)
+    .in("role", ["admin", "super_admin"])
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as MemberRow[]).map(toUser);
+}
+
+// Returns the logged-in caller's own role, or null if not signed in.
+// Used to gate super_admin-only UI (Grant/Revoke Admin Access) without
+// re-fetching the full member list.
+export async function getCallerRole(): Promise<User["role"] | null> {
+  const supabase = await createClient();
+  const {
+    data: { user: caller },
+  } = await supabase.auth.getUser();
+
+  if (!caller) return null;
+
+  const { data: callerProfile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", caller.id)
+    .single();
+
+  return callerProfile?.role ?? null;
 }

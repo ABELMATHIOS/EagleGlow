@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { signIn } from '@/src/lib/auth';
+import { signIn, getCurrentSessionRole } from '@/src/lib/auth';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,10 +28,16 @@ export default function Login() {
     setStatus('submitting');
     setErrorMessage('');
 
-    try {
+        try {
       await signIn(email, password);
       setStatus('idle');
-      router.push(searchParams.get('redirectTo') || '/dashboard');
+      const redirectTo = searchParams.get('redirectTo');
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        const role = await getCurrentSessionRole();
+        router.push(role === 'admin' || role === 'super_admin' ? '/admin' : '/dashboard');
+      }
     } catch (err) {
       setStatus('error');
       setErrorMessage(

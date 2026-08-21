@@ -40,8 +40,9 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    // Admin routes: role must be admin, full stop.
-    if (needsAdmin && profile?.role !== "admin") {
+        // Admin routes: role must be admin or super_admin, full stop.
+    const ADMIN_ROLES = ["admin", "super_admin"];
+    if (needsAdmin && !ADMIN_ROLES.includes(profile?.role ?? "")) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
@@ -50,10 +51,10 @@ export async function middleware(request: NextRequest) {
     // Member routes (dashboard/profile): status must be active, graduated,
     // or serving — all three mean the member is in good standing and has
     // full access. Only pending/paused/withdrawn get gated to /auth/pending.
-    // Admins bypass the approval gate entirely.
+    // Admins and super_admins bypass the approval gate entirely.
     const APPROVED_STATUSES = ["active", "graduated", "serving"];
     const isApproved =
-      APPROVED_STATUSES.includes(profile?.status ?? "") || profile?.role === "admin";
+      APPROVED_STATUSES.includes(profile?.status ?? "") || ADMIN_ROLES.includes(profile?.role ?? "");
     if (!needsAdmin && !isApproved) {
       const url = request.nextUrl.clone();
       url.pathname = "/auth/pending";

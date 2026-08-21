@@ -1,10 +1,19 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { Menu, X } from 'lucide-react';
 
-const navItems = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  dividerBefore?: boolean;
+};
+
+const navItems: NavItem[] = [
   {
     label: 'Overview',
     href: '/admin',
@@ -48,25 +57,25 @@ const navItems = [
     ),
   },
   {
-  label: 'Home',
-  href: '/admin/home',
-  icon: (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-      <polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  ),
-},
+    label: 'Home',
+    href: '/admin/home',
+    icon: (
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    ),
+  },
   {
-  label: 'Gallery',
-  href: '/admin/gallery',
-  icon: (
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-      <circle cx="8.5" cy="8.5" r="1.5"/>
-      <polyline points="21 15 16 10 5 21"/>
-    </svg>
-  ),
+    label: 'Gallery',
+    href: '/admin/gallery',
+    icon: (
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    ),
   },
   {
     label: 'About',
@@ -94,6 +103,9 @@ const navItems = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => { setIsOpen(false); }, [pathname]);
 
   return (
     <>
@@ -139,13 +151,85 @@ export default function AdminSidebar() {
           background: rgba(255,255,255,0.06);
           margin: 8px 0;
         }
+
+        .admin-mobile-trigger {
+          display: none;
+        }
+
         @media (max-width: 768px) {
-          .admin-sidebar { display: none; }
+          .admin-sidebar {
+            display: flex;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 80;
+            transform: translateX(-100%);
+            transition: transform 0.22s cubic-bezier(0.32,0.72,0,1);
+            box-shadow: 12px 0 40px rgba(0,0,0,0.6);
+          }
+          .admin-sidebar.open {
+            transform: translateX(0);
+          }
+          .admin-mobile-trigger {
+            display: flex;
+            position: fixed;
+            top: 14px; left: 14px;
+            z-index: 90;
+            align-items: center; justify-content: center;
+            width: 38px; height: 38px;
+            background: #111;
+            border: 1px solid rgba(201,168,76,0.25);
+            border-radius: 10px;
+            color: #C9A84C;
+            cursor: pointer;
+          }
         }
       `}</style>
 
-      <aside className="admin-sidebar">
-        {/* Logo */}
+      {/* Menu trigger — only rendered while the sidebar is closed, so it can
+          never sit on top of the logo once the sidebar slides into view. */}
+      {!isOpen && (
+        <button
+          className="admin-mobile-trigger"
+          onClick={() => setIsOpen(true)}
+          aria-label="Open admin menu"
+          aria-expanded={isOpen}
+        >
+          <Menu size={18} />
+        </button>
+      )}
+
+      <div
+        onClick={() => setIsOpen(false)}
+        aria-hidden="true"
+        style={{
+          position: 'fixed', inset: 0, zIndex: 75,
+          background: 'rgba(0,0,0,0.55)',
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? 'auto' : 'none',
+          transition: 'opacity 0.22s ease',
+          display: isOpen ? 'block' : 'none',
+        }}
+      />
+
+      <aside className={`admin-sidebar ${isOpen ? 'open' : ''}`}>
+        {/* Close button — now anchored top-right, inside the sidebar, so it
+            sits next to the logo instead of off-screen. */}
+        <button
+          onClick={() => setIsOpen(false)}
+          aria-label="Close admin menu"
+          className="admin-mobile-trigger"
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            left: 'auto',
+            background: 'transparent',
+            border: 'none',
+          }}
+        >
+          <X size={18} />
+        </button>
+
         <div style={{
           padding: '20px 16px 16px',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -186,7 +270,6 @@ export default function AdminSidebar() {
           </Link>
         </div>
 
-        {/* Nav */}
         <nav style={{ padding: '12px 8px', flex: 1, overflowY: 'auto' }}>
           {navItems.map((item) => {
             const isActive = item.href === '/admin'
@@ -207,7 +290,6 @@ export default function AdminSidebar() {
           })}
         </nav>
 
-        {/* Footer */}
         <div style={{
           padding: '12px 16px',
           borderTop: '1px solid rgba(255,255,255,0.06)',

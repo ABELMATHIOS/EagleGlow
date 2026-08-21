@@ -1,5 +1,5 @@
 import AdminSidebar from '@/src/components/admin/AdminSidebar';
-
+import AdminLogoutButton from '@/src/components/admin/AdminLogoutButton';
 export const metadata = {
   title: 'Admin Panel — EagleGlow',
 };
@@ -46,7 +46,9 @@ export default function AdminLayout({
         }
         @media (max-width: 768px) {
           .admin-content { padding: 20px 16px; }
-          .admin-topbar  { padding: 0 16px; }
+          .admin-topbar  { padding: 0 16px 0 64px; justify-content: flex-end; }
+          .admin-topbar-title { display: none; }
+          .admin-topbar-username { display: none !important; }
         }
       `}</style>
 
@@ -55,25 +57,28 @@ export default function AdminLayout({
         <div className="admin-main">
           {/* Top bar */}
           <div className="admin-topbar">
-            <p style={{
+            <p className="admin-topbar-title" style={{
               fontFamily: 'Inter, sans-serif',
               fontSize: 13, color: 'rgba(255,255,255,0.35)',
             }}>
               EagleGlow Admin Panel
             </p>
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
+              display: 'flex', alignItems: 'center', gap: 16,
             }}>
-              <span style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: '#2ECC71', flexShrink: 0,
-              }} />
-              <span style={{
-                fontSize: 12, color: 'rgba(255,255,255,0.4)',
-                fontFamily: 'Inter, sans-serif',
-              }}>
-                Master Endale — Admin
-              </span>
+              <div className="admin-topbar-username" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: '#2ECC71', flexShrink: 0,
+                }} />
+                <span style={{
+                  fontSize: 12, color: 'rgba(255,255,255,0.4)',
+                  fontFamily: 'Inter, sans-serif',
+                }}>
+                  Master Endale — Admin
+                </span>
+              </div>
+              <AdminLogoutButton />
             </div>
           </div>
 

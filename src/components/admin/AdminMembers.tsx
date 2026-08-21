@@ -4,7 +4,7 @@ import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AdminNote, NameCorrectionRequest, Status, RegistrationType, User, Belt } from '@/src/types';
-import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword } from '@/src/lib/admin-action';
+import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword, addMemberNote, deleteMemberNote, setMemberAdminRole } from '@/src/lib/admin-action';
 
 // This admin view keeps its own flat shape (fullName/belt-as-name instead of
 // name/beltId) because that's what this screen's filtering and CSV export
@@ -18,6 +18,7 @@ type Member = {
   fullName: string;
   email: string;
   phone: string;
+  role: User['role'];
   registrationType: RegistrationType;
   previousBelt: string;
   yearJoined: string;
@@ -42,7 +43,9 @@ type Member = {
 
 type AdminMembersProps = {
   initialMembers: User[];
-  belts: Belt[]; // real Supabase belts, already sorted by `order` ascending
+  belts: Belt[];
+  callerRole: User["role"] | null;
+  initialAdmins: User[]; // only populated for super_admin callers
 };
 
 // Converts the real User rows (from getAllMembers()) into this screen's flat
@@ -59,6 +62,7 @@ function toMembers(users: User[], belts: Belt[]): Member[] {
       fullName: u.name,
       email: u.email,
       phone: u.phone ?? '',
+      role: u.role,
       registrationType: u.registrationType,
       previousBelt: u.previousBelt ?? '',
       yearJoined: u.yearJoined ?? '',
@@ -114,8 +118,9 @@ const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Health / Medical Notes',  get: (m) => m.healthNotes },
 ];
 
-export default function AdminMembers({ initialMembers, belts }: AdminMembersProps) {
+export default function AdminMembers({ initialMembers, belts, callerRole, initialAdmins }: AdminMembersProps) {
   const [members,       setMembers]       = useState<Member[]>(() => toMembers(initialMembers, belts));
+  const [admins,         setAdmins]        = useState<Member[]>(() => toMembers(initialAdmins, belts));
   const [search,        setSearch]        = useState('');
   const [filterStatus,  setFilterStatus]  = useState('all');
   const [filterBelt,    setFilterBelt]    = useState('all');
@@ -164,7 +169,7 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
   const [contactDraft, setContactDraft] = useState({ email: '', phone: '', emergencyName: '', emergencyPhone: '' });
 
   // Admin notes — new entry composer
-  const [newNote, setNewNote] = useState('');
+  
 
   const [correctionSaving, setCorrectionSaving] = useState<string | null>(null);
   const [correctionError,  setCorrectionError]  = useState<string | null>(null);
@@ -185,10 +190,11 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     return matchSearch && matchStatus && matchBelt;
   });
 
-  const selectedMember = members.find((m) => m.id === selected);
+    const selectedMember = members.find((m) => m.id === selected) ?? admins.find((m) => m.id === selected);
 
-  const updateMember = (id: string, patch: Partial<Member>) => {
+    const updateMember = (id: string, patch: Partial<Member>) => {
     setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+    setAdmins((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   };
 
   const selectMember = (id: string) => {
@@ -206,8 +212,8 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     setNewPasswordDraft('');
     setPasswordError(null);
     setPasswordSuccess(null);
-    if (!isSame) {
-      const m = members.find((mm) => mm.id === id);
+        if (!isSame) {
+      const m = members.find((mm) => mm.id === id) ?? admins.find((mm) => mm.id === id);
       if (m) setContactDraft({ email: m.email, phone: m.phone, emergencyName: m.emergencyName, emergencyPhone: m.emergencyPhone });
     }
   };
@@ -261,19 +267,16 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
   // Suspend snapshots whatever status the member is in right now, so
   // Reactivate knows what to restore later.
   const suspendMember = (id: string) => {
-    const m = members.find((mm) => mm.id === id);
+    const m = members.find((mm) => mm.id === id) ?? admins.find((mm) => mm.id === id);
     if (!m) return;
     setMemberStatus(id, 'paused', m.status);
-  };
+};
 
-  // Restores the member's status from before they were paused (Active,
-  // Serving, whatever it was) instead of always resetting to 'active'.
-  // Falls back to 'active' for members paused before this tracking existed.
-  const reactivateMember = (id: string) => {
-    const m = members.find((mm) => mm.id === id);
+const reactivateMember = (id: string) => {
+    const m = members.find((mm) => mm.id === id) ?? admins.find((mm) => mm.id === id);
     const target = m?.previousStatus ?? 'active';
     setMemberStatus(id, target);
-  };
+};
 
   // Generates something easy to say out loud and retype correctly (two
   // short words + a number), rather than the admin inventing one on the
@@ -396,13 +399,65 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
     updateMember(id, { ...contactDraft });
     setEditingContact(false);
   };
-
-  const addAdminNote = (id: string) => {
+    // Admin notes — new entry composer
+    // Admin notes — new entry composer
+  const [newNote, setNewNote] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false); // adding a note
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [noteDeletingId, setNoteDeletingId] = useState<string | null>(null); // note id currently deleting
+  const [roleSaving, setRoleSaving] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
+    const addAdminNote = async (id: string) => {
     const text = newNote.trim();
     if (!text || !selectedMember) return;
-    const entry: AdminNote = { id: `n${Date.now()}`, date: new Date().toISOString().slice(0, 10), note: text };
-    updateMember(id, { adminNotes: [entry, ...selectedMember.adminNotes] });
-    setNewNote('');
+    setNoteSaving(true);
+    setNoteError(null);
+    try {
+      const { user } = await addMemberNote(id, text);
+      updateMember(id, { adminNotes: user.admin_notes ?? [] });
+      setNewNote('');
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : 'Failed to add note');
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const deleteAdminNote = async (id: string, noteId: string) => {
+    setNoteDeletingId(noteId);
+    setNoteError(null);
+    try {
+      const { user } = await deleteMemberNote(id, noteId);
+      updateMember(id, { adminNotes: user.admin_notes ?? [] });
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : 'Failed to delete note');
+    } finally {
+      setNoteDeletingId(null);
+    }
+  };
+      const toggleAdminRole = async (id: string, grant: boolean) => {
+    setRoleSaving(true);
+    setRoleError(null);
+    try {
+      const { user } = await setMemberAdminRole(id, grant);
+      if (grant) {
+        const existing = members.find((m) => m.id === id);
+        setMembers((prev) => prev.filter((m) => m.id !== id));
+        if (existing) {
+          setAdmins((prev) => [{ ...existing, role: user.role, adminNotes: user.admin_notes ?? [] }, ...prev]);
+        }
+      } else {
+        const existing = admins.find((m) => m.id === id);
+        setAdmins((prev) => prev.filter((m) => m.id !== id));
+        if (existing) {
+          setMembers((prev) => [{ ...existing, role: user.role, adminNotes: user.admin_notes ?? [] }, ...prev]);
+        }
+      }
+    } catch (err) {
+      setRoleError(err instanceof Error ? err.message : 'Failed to update admin access');
+    } finally {
+      setRoleSaving(false);
+    }
   };
 
   const approveNameCorrection = async (id: string) => {
@@ -865,6 +920,46 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
           {belts.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
         </select>
       </div>
+            {callerRole === 'super_admin' && (
+        <div style={{
+          marginBottom: 20, background: '#111', border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: 16, padding: '16px 18px',
+        }}>
+          <p className="section-label" style={{ margin: '0 0 10px' }}>
+            Admins ({admins.length})
+          </p>
+          {admins.length === 0 ? (
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: 'rgba(255,255,255,0.3)', margin: 0 }}>
+              No other admins yet.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {admins.map((a) => (
+                <div
+                  key={a.id}
+                  onClick={() => selectMember(a.id)}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
+                    background: selected === a.id ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.02)',
+                    border: selected === a.id ? '1px solid rgba(201,168,76,0.25)' : '1px solid transparent',
+                  }}
+                >
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12.5, color: 'rgba(255,255,255,0.85)' }}>
+                    {a.fullName} <span style={{ color: 'rgba(255,255,255,0.35)' }}>· {a.email}</span>
+                  </span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, color: a.role === 'super_admin' ? '#C9A84C' : 'rgba(255,255,255,0.5)',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                  }}>
+                    {a.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="members-layout">
         {/* Table */}
@@ -1134,7 +1229,7 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
               )}
 
               {/* ── Admin notes — running dated log ── */}
-              <div style={{
+                            <div style={{
                 marginBottom: 20, paddingTop: 16,
                 borderTop: '1px solid rgba(255,255,255,0.06)',
               }}>
@@ -1149,12 +1244,14 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                   <button
                     className="admin-btn-gold"
                     style={{ alignSelf: 'flex-start' }}
-                    disabled={!newNote.trim()}
+                    disabled={!newNote.trim() || noteSaving}
                     onClick={() => addAdminNote(selectedMember.id)}
                   >
-                    Add Note
+                    {noteSaving ? 'Saving...' : 'Add Note'}
                   </button>
                 </div>
+
+                {noteError && <p className="field-error">{noteError}</p>}
 
                 {selectedMember.adminNotes.length > 0 && (
                   <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1164,7 +1261,22 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                         border: '0.5px solid rgba(255,255,255,0.06)',
                         borderRadius: 8, padding: '8px 10px',
                       }}>
-                        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '0 0 4px', fontFamily: 'Inter, sans-serif' }}>{n.date}</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '0 0 4px', fontFamily: 'Inter, sans-serif' }}>{n.date}</p>
+                          <button
+                            className="row-action-btn"
+                            style={{
+                              border: '1px solid rgba(231,76,60,0.3)', color: '#E74C3C',
+                              background: 'transparent', borderRadius: 8, padding: '2px 8px',
+                              fontSize: 10, cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                              flexShrink: 0,
+                            }}
+                            onClick={() => deleteAdminNote(selectedMember.id, n.id)}
+                            disabled={noteDeletingId === n.id}
+                          >
+                            {noteDeletingId === n.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </div>
                         <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', margin: 0, fontFamily: 'Inter, sans-serif', lineHeight: 1.5 }}>{n.note}</p>
                       </div>
                     ))}
@@ -1573,11 +1685,37 @@ export default function AdminMembers({ initialMembers, belts }: AdminMembersProp
                       </p>
                     )}
                   </div>
+                  
                 )}
               </div>
+                              {/* Grant/Revoke Admin Access — super_admin only, and never
+                    shown for the caller's own row (server-side blocked too,
+                    this is just UI-level avoidance of a doomed request). */}
+                {callerRole === 'super_admin' && selectedMember.role === 'member' && (
+                  <button
+                    className="admin-btn-ghost"
+                    style={{ width: '100%', marginTop: 12 }}
+                    onClick={() => toggleAdminRole(selectedMember.id, true)}
+                    disabled={roleSaving}
+                  >
+                    {roleSaving ? 'Saving...' : '★ Grant Admin Access'}
+                  </button>
+                )}
+                {callerRole === 'super_admin' && selectedMember.role === 'admin' && (
+                  <button
+                    className="admin-btn-danger"
+                    style={{ width: '100%', marginTop: 12 }}
+                    onClick={() => toggleAdminRole(selectedMember.id, false)}
+                    disabled={roleSaving}
+                  >
+                    {roleSaving ? 'Saving...' : '✕ Revoke Admin Access'}
+                  </button>
+                )}
+                {roleError && <p className="field-error">{roleError}</p>}
             </div>
           )}
         </div>
+        
       </div>
     </>
   );

@@ -219,3 +219,40 @@ export async function updateHomeContent(patch: { heroVideoUrl?: string | null })
   }
   return res.json();
 }
+export async function addMemberNote(userId: string, note: string) {
+  const res = await fetch(`/api/admin/users/${userId}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to add note");
+  }
+  return res.json();
+}
+
+export async function deleteMemberNote(userId: string, noteId: string) {
+  const res = await fetch(`/api/admin/users/${userId}/notes`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ noteId }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to delete note");
+  }
+  return res.json();
+}
+export async function setMemberAdminRole(userId: string, grant: boolean) {
+  const res = await fetch(`/api/admin/users/${userId}/role`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ grant }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to update admin access");
+  }
+  return res.json();
+}

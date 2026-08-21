@@ -88,7 +88,7 @@ export async function sendPasswordReset(email: string) {
 // Client-side role read — for components like Navbar that run in the
 // browser and just need "guest / member / admin" to decide what to show.
 // Relies on the "Users can read their own row" RLS policy.
-export async function getCurrentSessionRole(): Promise<"guest" | "member" | "admin"> {
+export async function getCurrentSessionRole(): Promise<"guest" | "member" | "admin" | "super_admin"> {
   const supabase = createClient();
   const {
     data: { user },
@@ -102,5 +102,5 @@ export async function getCurrentSessionRole(): Promise<"guest" | "member" | "adm
     .eq("id", user.id)
     .single();
 
-  return (data?.role as "guest" | "member" | "admin") ?? "guest";
+  return (data?.role as "guest" | "member" | "admin" | "super_admin") ?? "guest";
 }

@@ -49,7 +49,8 @@ export async function PATCH(
       .eq("id", caller.id)
       .single();
 
-    if (callerProfile?.role !== "admin") {
+        const ALLOWED_CALLER_ROLES = ["admin", "super_admin"];
+    if (!ALLOWED_CALLER_ROLES.includes(callerProfile?.role ?? "")) {
       return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
     }
 
