@@ -449,23 +449,6 @@ function AlbumCard({
                 ▶ Watch Video
               </button>
             )}
-
-            {/* Open YouTube directly */}
-            {album.youtubeId && !album.youtubeId.startsWith('PLACEHOLDER') && (
-              <a
-                href={`https://www.youtube.com/watch?v=${album.youtubeId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="album-action-btn"
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.35)',
-                }}
-              >
-                ↗ YouTube
-              </a>
-            )}
           </div>
         </div>
 
