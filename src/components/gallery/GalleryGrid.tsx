@@ -6,6 +6,48 @@ import type { GalleryAlbum } from '@/src/types';
 
 const TABS = ['All', 'Graduation', 'Competition', 'Training'];
 
+// ── Preview Image (with real fallback on load failure) ─────────
+function PreviewImage({
+  src,
+  alt,
+  onClick,
+}: {
+  src: string;
+  alt: string;
+  onClick: () => void;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed || !src) {
+    return (
+      <div
+        onClick={onClick}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, #1a1a1a, #111)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <span style={{ fontSize: 28, opacity: 0.3 }}>📸</span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      style={{ objectFit: 'cover' }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 // ── YouTube Modal ─────────────────────────────────────────────
 function YouTubeModal({
   videoId,
@@ -238,6 +280,7 @@ function AlbumCard({
           background: rgba(0,0,0,0);
           transition: background 0.3s;
           display: flex; align-items: center; justify-content: center;
+          pointer-events: none;
         }
         .preview-main:hover .preview-overlay,
         .preview-small:hover .preview-overlay {
@@ -327,44 +370,26 @@ function AlbumCard({
             </div>
           </div>
         ) : album.previews.length > 0 ? (
-          /* 3 preview photos grid */
+          /* 3 preview photos grid — each slot falls back cleanly on load failure */
           <div className="preview-grid-3">
-            <div className="preview-main" onClick={() => onOpenPhoto(album.previews, 0)}>
-              <Image
+            <div className="preview-main">
+              <PreviewImage
                 src={album.previews[0]}
                 alt="Preview 1"
-                fill
-                style={{ objectFit: 'cover' }}
-                onError={() => {}}
+                onClick={() => onOpenPhoto(album.previews, 0)}
               />
-              <div style={{
-                position: 'absolute', inset: 0, zIndex: -1,
-                background: 'linear-gradient(135deg, #1a1a1a, #111)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <span style={{ fontSize: 28, opacity: 0.1 }}>📸</span>
-              </div>
-              <div className="preview-overlay">
+              <div className="preview-overlay" onClick={() => onOpenPhoto(album.previews, 0)}>
                 <span style={{ fontSize: 20, opacity: 0 }}>🔍</span>
               </div>
             </div>
             {album.previews.slice(1, 3).map((src, i) => (
-              <div key={i} className="preview-small" onClick={() => onOpenPhoto(album.previews, i + 1)}>
-                <Image
+              <div key={i} className="preview-small">
+                <PreviewImage
                   src={src}
                   alt={`Preview ${i + 2}`}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  onError={() => {}}
+                  onClick={() => onOpenPhoto(album.previews, i + 1)}
                 />
-                <div style={{
-                  position: 'absolute', inset: 0, zIndex: -1,
-                  background: 'linear-gradient(135deg, #1a1a1a, #111)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ fontSize: 20, opacity: 0.1 }}>📸</span>
-                </div>
-                <div className="preview-overlay" />
+                <div className="preview-overlay" onClick={() => onOpenPhoto(album.previews, i + 1)} />
               </div>
             ))}
           </div>
