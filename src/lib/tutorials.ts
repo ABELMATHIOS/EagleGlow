@@ -57,7 +57,7 @@ export async function getAllTutorials(): Promise<Tutorial[]> {
     .select("role")
     .eq("id", caller.id)
     .single();
-  if (callerProfile?.role !== "admin") return [];
+  if (callerProfile?.role !== "admin" && callerProfile?.role !== "super_admin") return [];
 
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase

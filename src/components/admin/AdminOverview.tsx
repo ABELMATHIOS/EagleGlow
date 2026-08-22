@@ -5,7 +5,8 @@ import { Status, User, Belt } from '@/src/types';
 
 type AdminOverviewProps = {
   members: User[];
-  belts: Belt[]; // real Supabase belts, sorted by order ascending
+  belts: Belt[];
+  userName: string;
 };
 
 // Covers the full Status enum, not just pending/active, so any real status
@@ -20,7 +21,7 @@ const STATUS_COLORS: Record<Status, string> = {
   served: '#1ABC9C',
 };
 
-export default function AdminOverview({ members, belts }: AdminOverviewProps) {
+export default function AdminOverview({ members, belts, userName }: AdminOverviewProps) {
   // Derived from the real member/belt lists passed in from app/admin/page.tsx
   // (a Server Component fetching via getAllMembers() + getBelts()). Replaces
   // the old MOCK_MEMBERS / BELTS mock imports — same shape, real source.

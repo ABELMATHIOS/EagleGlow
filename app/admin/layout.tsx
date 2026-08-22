@@ -1,14 +1,18 @@
 import AdminSidebar from '@/src/components/admin/AdminSidebar';
 import AdminLogoutButton from '@/src/components/admin/AdminLogoutButton';
+import { getCurrentUser } from '@/src/lib/get-current-user';
+
 export const metadata = {
   title: 'Admin Panel — EagleGlow',
 };
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getCurrentUser();
+
   return (
     <>
       <style>{`
@@ -75,7 +79,7 @@ export default function AdminLayout({
                   fontSize: 12, color: 'rgba(255,255,255,0.4)',
                   fontFamily: 'Inter, sans-serif',
                 }}>
-                  Master Endale — Admin
+                  {user?.name ?? 'Admin'} — {user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
                 </span>
               </div>
               <AdminLogoutButton />

@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest) {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'admin') {
+  if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
