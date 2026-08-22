@@ -368,7 +368,41 @@ function AlbumCard({
               </div>
             ))}
           </div>
-        ) : null}
+        ) : album.youtubeId ? (
+          /* No uploaded photos, but has a video — use the YouTube thumbnail */
+          <div
+            className="video-only-thumb"
+            onClick={() => onPlayVideo(album.youtubeId!, `${album.title} — ${album.subtitle}`)}
+          >
+            {!album.youtubeId.startsWith('PLACEHOLDER') && (
+              <Image
+                src={`https://img.youtube.com/vi/${album.youtubeId}/hqdefault.jpg`}
+                alt={album.title}
+                fill
+                style={{ objectFit: 'cover', opacity: 0.4 }}
+                onError={() => {}}
+              />
+            )}
+            <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <div className="play-btn-large">▶</div>
+              <p style={{
+                fontFamily: 'Inter, sans-serif', fontSize: 12,
+                color: 'rgba(255,255,255,0.5)', margin: 0,
+              }}>
+                Click to watch
+              </p>
+            </div>
+          </div>
+        ) : (
+          /* No photos, no video — just a link-only album (e.g. Google Photos only) */
+          <div style={{
+            aspectRatio: '16/9',
+            background: 'linear-gradient(135deg, #1a1a1a, #111)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 36, opacity: 0.15 }}>📸</span>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="album-footer">
