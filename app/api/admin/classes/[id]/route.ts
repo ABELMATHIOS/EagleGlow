@@ -8,7 +8,8 @@ async function requireAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data: profile } = await supabase.from("users").select("role").eq("id", user.id).single();
-  return profile?.role === "admin" ? user : null;
+  const ADMIN_ROLES = ["admin", "super_admin"];
+  return profile?.role && ADMIN_ROLES.includes(profile.role) ? user : null;
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
