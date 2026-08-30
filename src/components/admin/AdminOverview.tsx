@@ -36,9 +36,6 @@ export default function AdminOverview({ members, belts, userName }: AdminOvervie
     { label: 'Total Members',    value: String(totalMembers), delta: `${totalMembers} on record`, color: '#C9A84C' },
     { label: 'Pending Approval', value: String(pendingCount),  delta: pendingCount > 0 ? 'Needs action' : 'All caught up', color: '#E74C3C' },
     { label: 'Active Members',   value: String(activeCount),   delta: totalMembers > 0 ? `${Math.round((activeCount / totalMembers) * 100)}% of total` : '0% of total', color: '#2ECC71' },
-    // Belt-promotion history isn't modeled yet (would come from
-    // MembershipHistory once that table exists) — left as a static placeholder.
-    { label: 'Belt Promotions',  value: '—', delta: 'Not tracked yet', color: '#3498DB' },
   ];
 
   const RECENT_MEMBERS = [...members]
@@ -65,7 +62,7 @@ export default function AdminOverview({ members, belts, userName }: AdminOvervie
 
         .overview-stats {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(3, 1fr);
           gap: 16px;
           margin-bottom: 32px;
         }
@@ -132,11 +129,11 @@ export default function AdminOverview({ members, belts, userName }: AdminOvervie
         }
 
         @media (max-width: 1100px) {
-          .overview-stats { grid-template-columns: repeat(2, 1fr); }
+          .overview-stats { grid-template-columns: repeat(3, 1fr); }
           .overview-grid  { grid-template-columns: 1fr; }
         }
         @media (max-width: 600px) {
-          .overview-stats { grid-template-columns: 1fr 1fr; }
+          .overview-stats { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -152,7 +149,7 @@ export default function AdminOverview({ members, belts, userName }: AdminOvervie
           fontFamily: 'Inter, sans-serif', fontSize: 13,
           color: 'rgba(255,255,255,0.35)', margin: 0,
         }}>
-          Welcome back, Master Endale. Here&apos;s what&apos;s happening.
+          Welcome back, {userName}. Here&apos;s what&apos;s happening.
         </p>
       </div>
 
