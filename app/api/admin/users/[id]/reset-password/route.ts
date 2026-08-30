@@ -38,7 +38,8 @@ export async function POST(
       .eq("id", caller.id)
       .single();
 
-    if (callerProfile?.role !== "admin") {
+    const ADMIN_ROLES = ["admin", "super_admin"];
+if (!ADMIN_ROLES.includes(callerProfile?.role ?? "")) {
       return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
     }
 

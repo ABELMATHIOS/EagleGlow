@@ -20,7 +20,8 @@ export async function PATCH(
     .eq("id", user.id)
     .single();
 
-  if (adminProfile?.role !== "admin") {
+  const ADMIN_ROLES = ["admin", "super_admin"];
+if (!ADMIN_ROLES.includes(adminProfile?.role ?? "")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
