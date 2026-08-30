@@ -73,15 +73,23 @@ export async function POST(
       }
 
       if (belts && belts.length > 0) {
-        const lowestBelt = belts[0]; // sort_order ascending, so [0] = White
-        const isReturning =
-          target.registration_type === "training" || target.registration_type === "returning";
-        const matchedBelt = isReturning
-          ? belts.find((b) => b.name === target.previous_belt)
-          : undefined;
+  const lowestBelt = belts[0]; // sort_order ascending, so [0] = White
+  const isReturning =
+    target.registration_type === "training" || target.registration_type === "returning";
+  const matchedBelt = isReturning
+    ? belts.find((b) => b.name === target.previous_belt)
+    : undefined;
 
-        update.belt_id = (matchedBelt ?? lowestBelt).id;
-      }
+  const assignedBelt = matchedBelt ?? lowestBelt;
+  update.belt_id = assignedBelt.id;
+
+  // If this assigns them straight into the top belt, mark them Graduated
+  // right away — mirrors the same rule the belt-promotion route uses.
+  const topBelt = belts[belts.length - 1];
+  if (assignedBelt.id === topBelt.id) {
+    update.status = "graduated";
+  }
+}
     }
 
     const { data, error } = await adminSupabase
