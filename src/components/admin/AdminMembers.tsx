@@ -4,7 +4,7 @@ import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AdminNote, NameCorrectionRequest, Status, RegistrationType, User, Belt } from '@/src/types';
-import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword, addMemberNote, deleteMemberNote, setMemberAdminRole } from '@/src/lib/admin-action';
+import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword, addMemberNote, deleteMemberNote, setMemberAdminRole, deleteMemberPermanently } from '@/src/lib/admin-action';
 
 // This admin view keeps its own flat shape (fullName/belt-as-name instead of
 // name/beltId) because that's what this screen's filtering and CSV export
@@ -164,6 +164,14 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
   const [approving,    setApproving]    = useState<string | null>(null); // member id currently being approved
   const [approveError, setApproveError] = useState<string | null>(null);
 
+  // Delete Permanently — separate from Decline (which just marks the member
+  // 'withdrawn' and keeps their record). This removes the users row AND the
+  // Supabase Auth account entirely. Gated behind an inline confirm step so
+  // it's never a single accidental click.
+  const [deleteConfirming, setDeleteConfirming] = useState(false); // confirm panel open/closed
+  const [deletingPermanently, setDeletingPermanently] = useState<string | null>(null); // member id currently deleting
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Contact-info inline editing (per selected member)
   const [editingContact, setEditingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState({ email: '', phone: '', emergencyName: '', emergencyPhone: '' });
@@ -212,6 +220,8 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
     setNewPasswordDraft('');
     setPasswordError(null);
     setPasswordSuccess(null);
+    setDeleteConfirming(false);
+    setDeleteError(null);
         if (!isSame) {
       const m = members.find((mm) => mm.id === id) ?? admins.find((mm) => mm.id === id);
       if (m) setContactDraft({ email: m.email, phone: m.phone, emergencyName: m.emergencyName, emergencyPhone: m.emergencyPhone });
@@ -277,6 +287,25 @@ const reactivateMember = (id: string) => {
     const target = m?.previousStatus ?? 'active';
     setMemberStatus(id, target);
 };
+
+  // Real: calls DELETE /api/admin/users/[id]. Removes the users row AND the
+  // Supabase Auth account entirely — unlike Decline/Withdraw, there's no
+  // record left afterward. Removes the member from local state on success.
+  const confirmDeletePermanently = async (id: string) => {
+    setDeletingPermanently(id);
+    setDeleteError(null);
+    try {
+      await deleteMemberPermanently(id);
+      setMembers((prev) => prev.filter((m) => m.id !== id));
+      setAdmins((prev) => prev.filter((m) => m.id !== id));
+      setSelected(null);
+      setDeleteConfirming(false);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete member');
+    } finally {
+      setDeletingPermanently(null);
+    }
+  };
 
   // Generates something easy to say out loud and retype correctly (two
   // short words + a number), rather than the admin inventing one on the
@@ -1287,7 +1316,7 @@ const reactivateMember = (id: string) => {
               {/* Actions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-                {/* Pending — Approve or Decline */}
+                {/* Pending — Approve, Decline, or Delete Permanently */}
                 {selectedMember.status === 'pending' && (
                   <>
                     <button
@@ -1307,6 +1336,52 @@ const reactivateMember = (id: string) => {
                     >
                       {statusSaving === selectedMember.id ? 'Declining...' : '✕ Decline Registration'}
                     </button>
+
+                    {/* Delete Permanently — separate from Decline. Removes the
+                        member and their login account entirely, no record kept.
+                        Gated behind an inline confirm step. */}
+                    {!deleteConfirming ? (
+                      <button
+                        className="admin-btn-ghost"
+                        style={{ width: '100%' }}
+                        onClick={() => { setDeleteConfirming(true); setDeleteError(null); }}
+                      >
+                        🗑 Delete Permanently
+                      </button>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(231,76,60,0.08)',
+                        border: '0.5px solid rgba(231,76,60,0.3)',
+                        borderRadius: 10, padding: '12px 14px',
+                      }}>
+                        <p style={{
+                          fontFamily: 'Inter, sans-serif', fontSize: 12,
+                          color: '#E74C3C', margin: '0 0 10px', lineHeight: 1.5,
+                        }}>
+                          This permanently deletes {selectedMember.fullName}&apos;s account and
+                          all their data — no record is kept, and this cannot be undone.
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            className="admin-btn-danger"
+                            style={{ flex: 1 }}
+                            onClick={() => confirmDeletePermanently(selectedMember.id)}
+                            disabled={deletingPermanently === selectedMember.id}
+                          >
+                            {deletingPermanently === selectedMember.id ? 'Deleting...' : 'Yes, delete permanently'}
+                          </button>
+                          <button
+                            className="admin-btn-ghost"
+                            style={{ flex: 1 }}
+                            onClick={() => setDeleteConfirming(false)}
+                            disabled={deletingPermanently === selectedMember.id}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {deleteError && <p className="field-error">{deleteError}</p>}
                   </>
                 )}
 
@@ -1600,16 +1675,62 @@ const reactivateMember = (id: string) => {
                   </button>
                 )}
 
-                {/* Withdrawn — Reactivate too, in case it was a mistake */}
+                {/* Withdrawn — Reactivate, or Delete Permanently to remove
+                    the record entirely */}
                 {selectedMember.status === 'withdrawn' && (
-                  <button
-                    className="admin-btn-ghost"
-                    style={{ width: '100%' }}
-                    onClick={() => reactivateMember(selectedMember.id)}
-                    disabled={statusSaving === selectedMember.id}
-                  >
-                    {statusSaving === selectedMember.id ? 'Saving...' : '↺ Reactivate Member'}
-                  </button>
+                  <>
+                    <button
+                      className="admin-btn-ghost"
+                      style={{ width: '100%' }}
+                      onClick={() => reactivateMember(selectedMember.id)}
+                      disabled={statusSaving === selectedMember.id}
+                    >
+                      {statusSaving === selectedMember.id ? 'Saving...' : '↺ Reactivate Member'}
+                    </button>
+
+                    {!deleteConfirming ? (
+                      <button
+                        className="admin-btn-ghost"
+                        style={{ width: '100%' }}
+                        onClick={() => { setDeleteConfirming(true); setDeleteError(null); }}
+                      >
+                        🗑 Delete Permanently
+                      </button>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(231,76,60,0.08)',
+                        border: '0.5px solid rgba(231,76,60,0.3)',
+                        borderRadius: 10, padding: '12px 14px',
+                      }}>
+                        <p style={{
+                          fontFamily: 'Inter, sans-serif', fontSize: 12,
+                          color: '#E74C3C', margin: '0 0 10px', lineHeight: 1.5,
+                        }}>
+                          This permanently deletes {selectedMember.fullName}&apos;s account and
+                          all their data — no record is kept, and this cannot be undone.
+                        </p>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            className="admin-btn-danger"
+                            style={{ flex: 1 }}
+                            onClick={() => confirmDeletePermanently(selectedMember.id)}
+                            disabled={deletingPermanently === selectedMember.id}
+                          >
+                            {deletingPermanently === selectedMember.id ? 'Deleting...' : 'Yes, delete permanently'}
+                          </button>
+                          <button
+                            className="admin-btn-ghost"
+                            style={{ flex: 1 }}
+                            onClick={() => setDeleteConfirming(false)}
+                            disabled={deletingPermanently === selectedMember.id}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {deleteError && <p className="field-error">{deleteError}</p>}
+                  </>
                 )}
 
                 {statusError && <p className="field-error">{statusError}</p>}

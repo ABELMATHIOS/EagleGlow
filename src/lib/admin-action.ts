@@ -256,3 +256,20 @@ export async function setMemberAdminRole(userId: string, grant: boolean) {
   }
   return res.json();
 }
+// Call from AdminMembers.tsx's "Delete Permanently" button. Unlike
+// declineMember/withdrawMember (which just set status to 'withdrawn' and
+// keep the record), this removes the member's row AND their Supabase Auth
+// account entirely — no trace left. Throws on failure so the caller can
+// show an error toast/message.
+export async function deleteMemberPermanently(userId: string) {
+  const res = await fetch(`/api/admin/users/${userId}`, {
+    method: "DELETE",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to delete member");
+  }
+
+  return res.json();
+}
