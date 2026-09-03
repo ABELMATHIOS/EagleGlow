@@ -41,6 +41,9 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
     emergencyName: '',
     emergencyPhone: '',
     healthNotes: '',
+    // Honeypot — real visitors never see or fill this field. Bots that
+    // auto-fill every input on a page usually fill it anyway.
+    honeypot: '',
   });
 
   const handleChange = (field: string, value: string) => {
@@ -77,6 +80,16 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Honeypot check — if this hidden field has anything in it, a bot
+    // filled it in (real visitors can't see or reach it). Silently pretend
+    // the submission succeeded instead of calling Supabase — this doesn't
+    // tip the bot off that it was caught, and nothing touches the database.
+    if (form.honeypot.trim() !== '') {
+      setSubmitted(true);
+      return;
+    }
+
     if (!canSubmit) return;
 
     setSubmitStatus('submitting');
@@ -446,6 +459,28 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
               </div>
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                {/* Honeypot — invisible and unreachable to real visitors.
+                    Positioned off-screen rather than display:none, since
+                    some bots specifically skip display:none fields but
+                    still auto-fill absolutely-positioned ones. */}
+                <input
+                  type="text"
+                  name="website"
+                  value={form.honeypot}
+                  onChange={(e) => handleChange('honeypot', e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    left: '-9999px',
+                    width: 1,
+                    height: 1,
+                    opacity: 0,
+                    pointerEvents: 'none',
+                  }}
+                />
 
                 {/* Registration type selector */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
