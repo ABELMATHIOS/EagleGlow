@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
 
   const body = await request.json();
-  const { day, time, title, type, level, instructor, durationMinutes } = body;
+  const { day, time, title, type, level, instructor, durationMinutes, tag } = body;
 
   if (!day || !time || !title || !type || !durationMinutes) {
     return NextResponse.json({ error: "Day, time, title, type, and duration are required" }, { status: 400 });
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       level: level?.trim() || null,
       instructor: instructor?.trim() || null,
       duration_minutes: Number(durationMinutes),
+      tag: tag || null,
     })
     .select()
     .single();

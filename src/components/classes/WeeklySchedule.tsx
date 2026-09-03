@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import SectionLabel from '@/src/components/classes/SectionLabel';
-import type { ClassSchedule } from '@/src/types';
+import type { ClassSchedule, ClassTag } from '@/src/types';
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -10,12 +10,46 @@ function formatDuration(minutes: number): string {
   return `${minutes} min`;
 }
 
+// Parses a time string ("6:00 AM", "17:00", "8:00") into a 24-hour integer
+// hour, so we can bucket it into Morning/Evening below. Falls back to 12
+// (noon) if the format is unrecognized, rather than throwing.
+function parseHour(time: string): number {
+  const t = time.trim();
+  const ampm = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const period = ampm[3].toUpperCase();
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return h;
+  }
+  const hm = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (hm) return parseInt(hm[1], 10);
+  return 12;
+}
+
+// Just two buckets: before noon is Morning, noon onward is Evening.
+function timeOfDay(time: string): 'Morning' | 'Evening' {
+  return parseHour(time) < 12 ? 'Morning' : 'Evening';
+}
+
+const TAG_LABELS: Record<ClassTag, string> = {
+  kids: 'KIDS',
+  adult: 'ADULT',
+  kiremt: 'KIREMT',
+};
+
+const TAG_COLORS: Record<ClassTag, string> = {
+  kids: '#E879C9',
+  adult: '#95A5A6',
+  kiremt: '#2ECC71',
+};
+
 type ClassEntry = {
   time: string;
-  name: string;
   type: 'wushu' | 'fitness';
   duration: string;
-  level?: string;
+  tag?: ClassTag;
 };
 
 type WeeklyScheduleProps = {
@@ -34,10 +68,9 @@ export default function WeeklySchedule({ classes }: WeeklyScheduleProps) {
       .filter((c) => c.day === day)
       .map((c) => ({
         time: c.time,
-        name: c.title,
         type: c.type,
         duration: formatDuration(c.durationMinutes),
-        level: c.level,
+        tag: c.tag,
       }));
     return acc;
   }, {} as Record<string, ClassEntry[]>), [classes]);
@@ -110,11 +143,11 @@ export default function WeeklySchedule({ classes }: WeeklyScheduleProps) {
           <div style={{ background: '#111', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden' }}>
             {/* Header */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '100px 1fr 100px 120px',
+              display: 'grid', gridTemplateColumns: '100px 1fr 100px',
               background: '#1a1a1a', padding: '14px 24px',
               borderBottom: '1px solid rgba(255,255,255,0.06)',
             }}>
-              {['Time', 'Class', 'Duration', 'Level'].map((h) => (
+              {['Time', 'Session', 'Duration'].map((h) => (
                 <div key={h} style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.15em', color: '#C9A84C', fontFamily: 'Arial, sans-serif' }}>{h}</div>
               ))}
             </div>
@@ -122,14 +155,14 @@ export default function WeeklySchedule({ classes }: WeeklyScheduleProps) {
             {/* Rows */}
             {filteredClasses.length > 0 ? filteredClasses.map((cls, i) => (
               <div key={i} className="schedule-row" style={{
-                display: 'grid', gridTemplateColumns: '100px 1fr 100px 120px',
+                display: 'grid', gridTemplateColumns: '100px 1fr 100px',
                 padding: '18px 24px', alignItems: 'center',
                 background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)',
                 borderBottom: i < filteredClasses.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
               }}>
                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#C9A84C', fontFamily: 'Arial, sans-serif', letterSpacing: '0.05em' }}>{cls.time}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', fontFamily: 'Arial, sans-serif' }}>{cls.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', fontFamily: 'Arial, sans-serif' }}>{timeOfDay(cls.time)}</span>
                   <span style={{
                     fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em',
                     padding: '3px 8px', borderRadius: '4px',
@@ -139,28 +172,26 @@ export default function WeeklySchedule({ classes }: WeeklyScheduleProps) {
                   }}>
                     {cls.type === 'wushu' ? 'WUSHU' : 'FITNESS'}
                   </span>
+                  {cls.tag && (
+                    <span style={{
+                      fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em',
+                      padding: '3px 8px', borderRadius: '4px',
+                      background: `${TAG_COLORS[cls.tag]}18`,
+                      color: TAG_COLORS[cls.tag],
+                      border: `0.5px solid ${TAG_COLORS[cls.tag]}40`,
+                      fontFamily: 'Arial, sans-serif',
+                    }}>
+                      {TAG_LABELS[cls.tag]}
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', fontFamily: 'Arial, sans-serif' }}>{cls.duration}</div>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', fontFamily: 'Arial, sans-serif' }}>{cls.level ?? '—'}</div>
               </div>
             )) : (
               <div style={{ padding: '48px 24px', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontFamily: 'Arial, sans-serif', fontSize: '14px' }}>
                 No classes match this filter for {activeDay}.
               </div>
             )}
-          </div>
-
-          {/* Instructor note */}
-          <div style={{
-            marginTop: '24px', padding: '16px 20px',
-            background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)',
-            borderLeft: '3px solid #C9A84C', borderRadius: '0 8px 8px 0',
-            display: 'flex', alignItems: 'center', gap: '12px',
-          }}>
-            <span style={{ fontSize: '16px' }}>🥋</span>
-            <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.55)', fontFamily: 'Arial, sans-serif', lineHeight: 1.6 }}>
-              <strong style={{ color: 'rgba(255,255,255,0.8)' }}>Master Endale Melse</strong> personally leads all sessions.
-            </p>
           </div>
         </div>
       </section>

@@ -11,6 +11,7 @@ type ClassRow = {
   instructor: string | null;
   duration_minutes: number;
   created_at: string;
+  tag: string | null;
 };
 
 function toClass(row: ClassRow): ClassSchedule {
@@ -23,6 +24,7 @@ function toClass(row: ClassRow): ClassSchedule {
     level: row.level ?? undefined,
     instructor: row.instructor ?? undefined,
     durationMinutes: row.duration_minutes,
+    tag: (row.tag as ClassSchedule["tag"]) ?? undefined,
   };
 }
 

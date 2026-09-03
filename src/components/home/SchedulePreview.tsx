@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import type { ClassSchedule } from "@/src/types";
+import type { ClassSchedule, ClassTag } from "@/src/types";
 
 // Only these three days show in the Home preview (per the original design) —
 // full week is on /classes.
@@ -12,6 +12,41 @@ const typeColors: Record<string, { bg: string; color: string; dot: string }> = {
   wushu:   { bg: "rgba(201,168,76,0.1)",  color: "#C9A84C",             dot: "#C9A84C"             },
   fitness: { bg: "rgba(99,179,237,0.1)",  color: "rgba(99,179,237,0.9)", dot: "rgba(99,179,237,0.9)" },
 };
+
+const TAG_LABELS: Record<ClassTag, string> = {
+  kids: "KIDS",
+  adult: "ADULT",
+  kiremt: "KIREMT",
+};
+
+const TAG_COLORS: Record<ClassTag, string> = {
+  kids: "#E879C9",
+  adult: "#95A5A6",
+  kiremt: "#2ECC71",
+};
+
+// Parses a time string ("6:00 AM", "17:00", "8:00") into a 24-hour integer
+// hour, so we can bucket it into Morning/Evening below. Falls back to 12
+// (noon) if the format is unrecognized, rather than throwing.
+function parseHour(time: string): number {
+  const t = time.trim();
+  const ampm = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const period = ampm[3].toUpperCase();
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+    return h;
+  }
+  const hm = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (hm) return parseInt(hm[1], 10);
+  return 12;
+}
+
+// Just two buckets: before noon is Morning, noon onward is Evening.
+function timeOfDay(time: string): 'Morning' | 'Evening' {
+  return parseHour(time) < 12 ? 'Morning' : 'Evening';
+}
 
 export default function SchedulePreview({ classes }: { classes: ClassSchedule[] }) {
   const days = PREVIEW_DAYS.filter((d) => classes.some((c) => c.day === d));
@@ -70,6 +105,30 @@ export default function SchedulePreview({ classes }: { classes: ClassSchedule[] 
           </p>
         ) : (
           <>
+            {/* Legend — shown above the day tabs so the color-coding is
+                explained before the person sees the badges on each row. */}
+            <div style={{
+              display: "flex", gap: 20, flexWrap: "wrap",
+              justifyContent: "center", marginBottom: 20,
+            }}>
+              {Object.entries(typeColors).map(([type, colors]) => (
+                <div key={type} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: colors.dot, flexShrink: 0,
+                  }} />
+                  <span style={{
+                    fontSize: 11, color: "rgba(255,255,255,0.35)",
+                    textTransform: "capitalize", letterSpacing: "0.05em",
+                  }}>
+                    {type}
+                  </span>
+                </div>
+              ))}
+            </div>
+
             {/* Day Tabs */}
             <div className="schedule-tabs">
               {days.map((day, i) => (
@@ -126,6 +185,7 @@ export default function SchedulePreview({ classes }: { classes: ClassSchedule[] 
                         ? "0.5px solid rgba(255,255,255,0.05)"
                         : "none",
                       transition: "background 0.2s",
+                      flexWrap: "wrap",
                     }}
                   >
                     {/* Time */}
@@ -144,21 +204,26 @@ export default function SchedulePreview({ classes }: { classes: ClassSchedule[] 
                       background: "rgba(255,255,255,0.06)",
                     }} />
 
-                    {/* Class name + level */}
-                    <div style={{ flex: 1 }}>
+                    {/* Time-of-day + optional group/season tag */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <p style={{
                         fontSize: 15, fontWeight: 700,
-                        color: "#fff", margin: "0 0 3px 0",
+                        color: "#fff", margin: 0,
                       }}>
-                        {cls.title}
+                        {timeOfDay(cls.time)}
                       </p>
-                      <p style={{
-                        fontSize: 11,
-                        color: "rgba(255,255,255,0.3)",
-                        margin: 0, letterSpacing: "0.05em",
-                      }}>
-                        {cls.level ?? "—"}
-                      </p>
+                      {cls.tag && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          letterSpacing: "0.08em",
+                          padding: "3px 8px", borderRadius: 100,
+                          background: `${TAG_COLORS[cls.tag]}18`,
+                          color: TAG_COLORS[cls.tag],
+                          border: `0.5px solid ${TAG_COLORS[cls.tag]}40`,
+                        }}>
+                          {TAG_LABELS[cls.tag]}
+                        </span>
+                      )}
                     </div>
 
                     {/* Type badge */}
@@ -180,7 +245,7 @@ export default function SchedulePreview({ classes }: { classes: ClassSchedule[] 
                         letterSpacing: "0.1em",
                         textTransform: "uppercase",
                       }}>
-                       
+                        {cls.type}
                       </span>
                     </div>
 
@@ -191,36 +256,13 @@ export default function SchedulePreview({ classes }: { classes: ClassSchedule[] 
           </>
         )}
 
-        {/* Legend + CTA */}
+        {/* CTA */}
         <div style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 16,
+          justifyContent: "flex-end",
           marginTop: 28,
         }}>
-          {/* Legend */}
-          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-            {Object.entries(typeColors).map(([type, colors]) => (
-              <div key={type} style={{
-                display: "flex", alignItems: "center", gap: 6,
-              }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: colors.dot, flexShrink: 0,
-                }} />
-                <span style={{
-                  fontSize: 11, color: "rgba(255,255,255,0.35)",
-                  textTransform: "capitalize", letterSpacing: "0.05em",
-                }}>
-                  {type}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA */}
           <Link href="/classes" className="schedule-btn">
             VIEW FULL CALENDAR →
           </Link>

@@ -76,6 +76,10 @@ export interface TutorialProgress {
   completedAt?: string;
 }
 
+// Add this type near ClassType:
+export type ClassTag = "kids" | "adult" | "kiremt"
+
+// Update the ClassSchedule interface to include the new optional field:
 export interface ClassSchedule {
   id:              string;
   day:             string; // "Monday" .. "Saturday"
@@ -85,6 +89,7 @@ export interface ClassSchedule {
   level?:          string;
   instructor?:     string;
   durationMinutes: number;
+  tag?:            ClassTag; // "kids" | "kiremt" — optional public badge, e.g. Kids program or Kiremt (summer-only) session
 }
 
 export interface GalleryAlbum {

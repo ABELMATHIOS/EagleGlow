@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { ClassSchedule } from '@/src/types';
+import type { ClassSchedule, ClassTag } from '@/src/types';
 import { createClass, updateClass, deleteClass } from '@/src/lib/admin-action';
 
 type Type = ClassSchedule['type'];
@@ -17,14 +17,35 @@ const TYPE_COLORS: Record<Type, string> = {
   fitness: '#63B3ED',
 };
 
+// Displayed generic label for each type — also used as the auto-filled
+// title sent to the backend, since the classes table expects a title but
+// the admin no longer types a specific program name (those change too
+// often to be worth tracking here — Sanda, Tae Bo, etc. are internal
+// program details, not something the public schedule needs to show).
+const TYPE_LABELS: Record<Type, string> = {
+  wushu: 'Wushu',
+  fitness: 'Fitness',
+};
+
+const TAG_LABELS: Record<ClassTag, string> = {
+  kids: 'Kids',
+  adult: 'Adult',
+  kiremt: 'Kiremt (Summer)',
+};
+
+const TAG_COLORS: Record<ClassTag, string> = {
+  kids: '#E879C9',
+  adult: '#95A5A6',
+  kiremt: '#2ECC71',
+};
+
 const EMPTY_FORM = {
   day: 'Monday',
   time: '',
-  title: '',
   type: 'wushu' as Type,
-  level: '',
   instructor: '',
   durationMinutes: '' as string | number,
+  tag: '' as '' | ClassTag,
 };
 
 export default function AdminClasses({ initialClasses }: AdminClassesProps) {
@@ -61,11 +82,10 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
     setForm({
       day: cls.day,
       time: cls.time,
-      title: cls.title,
       type: cls.type,
-      level: cls.level ?? '',
       instructor: cls.instructor ?? '',
       durationMinutes: cls.durationMinutes,
+      tag: cls.tag ?? '',
     });
     setEditId(cls.id);
     setSaveError(null);
@@ -74,18 +94,22 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
   }
 
   async function handleSave() {
-    if (!form.title.trim() || !form.time.trim() || !form.durationMinutes) return;
+    if (!form.time.trim() || !form.durationMinutes) return;
     setSaving(true);
     setSaveError(null);
     try {
       const payload = {
         day: form.day,
         time: form.time.trim(),
-        title: form.title.trim(),
+        // Auto-filled from type — the admin form no longer collects a
+        // specific class name, since program names change often and the
+        // public schedule only ever shows the generic type + time-of-day.
+        title: TYPE_LABELS[form.type],
         type: form.type,
-        level: form.level.trim() || null,
+        level: null,
         instructor: form.instructor.trim() || null,
         durationMinutes: Number(form.durationMinutes),
+        tag: form.tag || null,
       };
 
       if (editId) {
@@ -242,8 +266,8 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
         }
         @media (max-width: 700px) {
           .form-grid { grid-template-columns: 1fr; }
-          .classes-table th:nth-child(5),
-          .classes-table td:nth-child(5) { display: none; }
+          .classes-table th:nth-child(4),
+          .classes-table td:nth-child(4) { display: none; }
         }
       `}</style>
 
@@ -303,16 +327,6 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
             </div>
 
             <div>
-              <label className="admin-label">Class Name</label>
-              <input
-                className="admin-input"
-                placeholder="e.g. Wushu"
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              />
-            </div>
-
-            <div>
               <label className="admin-label">Type</label>
               <select
                 className="admin-select"
@@ -325,13 +339,17 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
             </div>
 
             <div>
-              <label className="admin-label">Level (optional)</label>
-              <input
-                className="admin-input"
-                placeholder="e.g. Beginner, Advanced"
-                value={form.level}
-                onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
-              />
+              <label className="admin-label">Group / Season (optional)</label>
+              <select
+                className="admin-select"
+                value={form.tag}
+                onChange={(e) => setForm((f) => ({ ...f, tag: e.target.value as '' | ClassTag }))}
+              >
+                <option value="">None</option>
+                <option value="kids">Kids</option>
+                <option value="adult">Adult</option>
+                <option value="kiremt">Kiremt (Summer)</option>
+              </select>
             </div>
 
             <div>
@@ -360,7 +378,7 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
             <button
               className="admin-btn-gold"
               onClick={handleSave}
-              disabled={!form.title.trim() || !form.time.trim() || !form.durationMinutes || saving}
+              disabled={!form.time.trim() || !form.durationMinutes || saving}
             >
               {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add Class'}
             </button>
@@ -395,9 +413,8 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
             <tr>
               <th>Day</th>
               <th>Time</th>
-              <th>Class</th>
               <th>Type</th>
-              <th>Level</th>
+              <th>Group</th>
               <th>Instructor</th>
               <th>Duration</th>
               <th>Actions</th>
@@ -406,7 +423,7 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
           <tbody>
             {sortedByDayTime.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
+                <td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
                   No classes found
                 </td>
               </tr>
@@ -415,7 +432,6 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
                 <tr>
                   <td>{cls.day}</td>
                   <td>{cls.time}</td>
-                  <td style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>{cls.title}</td>
                   <td>
                     <span style={{
                       fontSize: 10, fontWeight: 600,
@@ -429,7 +445,20 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
                       {cls.type}
                     </span>
                   </td>
-                  <td>{cls.level ?? '—'}</td>
+                  <td>
+                    {cls.tag ? (
+                      <span style={{
+                        fontSize: 10, fontWeight: 600,
+                        color: TAG_COLORS[cls.tag],
+                        background: `${TAG_COLORS[cls.tag]}18`,
+                        border: `0.5px solid ${TAG_COLORS[cls.tag]}40`,
+                        borderRadius: 100, padding: '3px 9px',
+                        fontFamily: 'Inter, sans-serif',
+                      }}>
+                        {TAG_LABELS[cls.tag]}
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td>{cls.instructor ?? '—'}</td>
                   <td>{cls.durationMinutes} min</td>
                   <td>
@@ -447,10 +476,10 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
 
                 {deleteConfirm === cls.id && (
                   <tr>
-                    <td colSpan={8} style={{ padding: '0 18px 14px', background: 'transparent' }}>
+                    <td colSpan={7} style={{ padding: '0 18px 14px', background: 'transparent' }}>
                       <div className="delete-confirm">
                         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E74C3C', margin: 0 }}>
-                          Delete &quot;{cls.title}&quot; ({cls.day} {cls.time})? This cannot be undone.
+                          Delete this {cls.type} class ({cls.day} {cls.time})? This cannot be undone.
                         </p>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button
@@ -493,5 +522,6 @@ function toClass(raw: any): ClassSchedule {
     level: raw.level ?? undefined,
     instructor: raw.instructor ?? undefined,
     durationMinutes: raw.duration_minutes,
+    tag: raw.tag ?? undefined,
   };
 }
