@@ -238,17 +238,22 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
   // /api/admin/users/[id]/approve), which flips status → active, role →
   // member server-side. Local state only updates after that succeeds.
   const approveMember = async (id: string) => {
-    setApproving(id);
-    setApproveError(null);
-    try {
-      await approveUser(id);
-      updateMember(id, { status: 'active' });
-    } catch (err) {
-      setApproveError(err instanceof Error ? err.message : 'Failed to approve member');
-    } finally {
-      setApproving(null);
-    }
-  };
+  setApproving(id);
+  setApproveError(null);
+  try {
+    const { user } = await approveUser(id);
+    const newBelt = user.belt_id ? beltById.get(user.belt_id) : undefined;
+    updateMember(id, {
+      status: user.status,
+      beltId: user.belt_id ?? '',
+      belt: newBelt?.name ?? 'White',
+    });
+  } catch (err) {
+    setApproveError(err instanceof Error ? err.message : 'Failed to approve member');
+  } finally {
+    setApproving(null);
+  }
+};
 
   // Real: all status actions call PATCH /api/admin/users/[id]/status.
   // `previousStatus` is only meaningful when transitioning INTO 'paused' —
