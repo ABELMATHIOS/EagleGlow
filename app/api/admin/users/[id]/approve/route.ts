@@ -74,8 +74,7 @@ export async function POST(
 
       if (belts && belts.length > 0) {
   const lowestBelt = belts[0]; // sort_order ascending, so [0] = White
-  const isReturning =
-    target.registration_type === "training" || target.registration_type === "returning";
+  const isReturning = target.registration_type === "existing";
   const matchedBelt = isReturning
     ? belts.find((b) => b.name === target.previous_belt)
     : undefined;
