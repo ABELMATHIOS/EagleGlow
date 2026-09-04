@@ -25,6 +25,9 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
   const [submitError, setSubmitError] = useState('');
 
   const [form, setForm] = useState({
+    // Which program this registration is for. Drives which downstream
+    // fields (belt, etc.) apply — see program-conditional rendering below.
+    program: 'wushu' as 'wushu' | 'fitness',
     fullName: '',
     email: '',
     phone: '',
@@ -34,10 +37,9 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
     weightKg: '',
     password: '',
     confirmPassword: '',
-    registrationType: 'new' as 'new' | 'training' | 'returning',
+    registrationType: 'new' as 'new' | 'existing',
     previousBelt: '',
     yearJoined: '',
-    gapReason: '',
     emergencyName: '',
     emergencyPhone: '',
     healthNotes: '',
@@ -47,17 +49,32 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
   });
 
   const handleChange = (field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      // Fitness has no "existing member" concept yet — it's a brand new
+      // program, so there's no history to ask about. Force registrationType
+      // back to 'new' whenever Fitness is selected, so a leftover
+      // 'existing' pick from Wushu can't sneak through.
+      if (field === 'program' && value === 'fitness') {
+        return { ...prev, program: 'fitness', registrationType: 'new' };
+      }
+      return { ...prev, [field]: value };
+    });
   };
+
+  const isWushu = form.program === 'wushu';
 
   const passwordValid = form.password.length >= 8;
   const passwordsMatch = form.confirmPassword.length > 0 && form.password === form.confirmPassword;
-  const isReturningOrTraining = form.registrationType === 'training' || form.registrationType === 'returning';
-  const yearJoinedValid = !isReturningOrTraining || form.yearJoined !== '';
-  const previousBeltValid = !isReturningOrTraining || form.previousBelt !== '';
+  const isExisting = form.registrationType === 'existing';
+  // Existing-member status only applies to Wushu — Fitness is brand new,
+  // so there's no "existing Fitness member" concept yet.
+  const yearJoinedValid = !isWushu || !isExisting || form.yearJoined !== '';
+  // Belt is only ever required for Wushu — Fitness has no belt system, so
+  // the requirement (and the field itself) is skipped entirely when
+  // program === 'fitness'.
+  const previousBeltValid = !isWushu || !isExisting || form.previousBelt !== '';
 
-  // Required for everyone: everything except Health/Medical Notes (always
-  // optional) and Gap Reason (optional, returning-only).
+  // Required for everyone except Health/Medical Notes (always optional).
   const requiredFieldsFilled =
     form.fullName.trim() !== '' &&
     form.email.trim() !== '' &&
@@ -112,13 +129,19 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
         emergencyContactName: form.emergencyName,
         emergencyContactPhone: form.emergencyPhone,
         healthNotes: form.healthNotes,
+        // New: which program this member is registering for. Defaults the
+        // downstream users.program column — see admin Members program
+        // filter / switch-program action.
+        program: form.program,
         registrationType: form.registrationType,
-        previousBelt: form.previousBelt,
+        // Belt only applies to Wushu — Fitness members never had a belt
+        // system, so this is always sent empty for them regardless of what
+        // registrationType they picked.
+        previousBelt: isWushu ? form.previousBelt : '',
         // New members aren't asked this on the form (the field only shows
-        // for training/returning) — default it to today's year so every
+        // for existing members) — default it to today's year so every
         // member row has a real join year, not an empty one.
         yearJoined: form.registrationType === 'new' ? String(CURRENT_YEAR) : form.yearJoined,
-        gapReason: form.gapReason,
       });
       setSubmitStatus('idle');
       setSubmitted(true);
@@ -465,24 +488,44 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                     some bots specifically skip display:none fields but
                     still auto-fill absolutely-positioned ones. */}
                 <input
-                  type="text"
-                  name="website"
-                  value={form.honeypot}
-                  onChange={(e) => handleChange('honeypot', e.target.value)}
-                  tabIndex={-1}
-                  autoComplete="off"
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    left: '-9999px',
-                    width: 1,
-                    height: 1,
-                    opacity: 0,
-                    pointerEvents: 'none',
-                  }}
-                />
+  type="text"
+  name="hp_field_do_not_fill"
+  id="hp_field_do_not_fill"
+  value={form.honeypot}
+  onChange={(e) => handleChange('honeypot', e.target.value)}
+  tabIndex={-1}
+  autoComplete="new-password"
+  aria-hidden="true"
+  style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+/>
 
-                {/* Registration type selector */}
+                {/* Program selector — Wushu vs Fitness. Placed first since
+                    it determines which fields below apply (belt, etc). */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  <label style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                    color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                  }}>Which program are you registering for?</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div
+                      className={`reg-type-btn${form.program === 'wushu' ? ' active' : ''}`}
+                      onClick={() => handleChange('program', 'wushu')}
+                    >
+                      Wushu
+                    </div>
+                    <div
+                      className={`reg-type-btn${form.program === 'fitness' ? ' active' : ''}`}
+                      onClick={() => handleChange('program', 'fitness')}
+                    >
+                      Fitness
+                    </div>
+                  </div>
+                </div>
+
+                {/* Registration type selector — Wushu only, since Fitness
+                    has no existing-member concept yet */}
+                {isWushu && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <label style={{
                     fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
@@ -497,80 +540,57 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                       New to EagleGlow
                     </div>
                     <div
-                      className={`reg-type-btn${form.registrationType === 'training' ? ' active' : ''}`}
-                      onClick={() => handleChange('registrationType', 'training')}
+                      className={`reg-type-btn${form.registrationType === 'existing' ? ' active' : ''}`}
+                      onClick={() => handleChange('registrationType', 'existing')}
                     >
-                      Currently Training
-                    </div>
-                    <div
-                      className={`reg-type-btn${form.registrationType === 'returning' ? ' active' : ''}`}
-                      onClick={() => handleChange('registrationType', 'returning')}
-                    >
-                      Returning
+                      Existing Member
                     </div>
                   </div>
                 </div>
-
-                {/* Previous belt + Year joined — only for training / returning */}
-                {(form.registrationType === 'training' || form.registrationType === 'returning') && (
-                  <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <label style={{
-                        fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
-                        color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
-                        textTransform: 'uppercase',
-                      }}>Current / Previous Belt <span style={{ color: '#E74C3C' }}>*</span></label>
-                      <select
-                        className="reg-select"
-                        value={form.previousBelt}
-                        onChange={(e) => handleChange('previousBelt', e.target.value)}
-                        required
-                      >
-                        <option value="">Select a belt</option>
-                        {BELT_OPTIONS.map((belt) => (
-                          <option key={belt} value={belt}>{belt}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <label style={{
-                        fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
-                        color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
-                        textTransform: 'uppercase',
-                      }}>Year You Joined EagleGlow <span style={{ color: '#E74C3C' }}>*</span></label>
-                      <select
-                        className="reg-select"
-                        value={form.yearJoined}
-                        onChange={(e) => handleChange('yearJoined', e.target.value)}
-                        required
-                      >
-                        <option value="">Select a year</option>
-                        {YEAR_OPTIONS.map((year) => (
-                          <option key={year} value={year}>{year}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </>
                 )}
 
-                {/* Gap reason — only for returning, optional */}
-                {form.registrationType === 'returning' && (
+                {/* Previous belt — Wushu only, since Fitness has no belt system */}
+                {isWushu && isExisting && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     <label style={{
                       fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
                       color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
                       textTransform: 'uppercase',
-                    }}>
-                      Reason for the gap <span style={{ textTransform: 'none', fontWeight: 400, opacity: 0.6 }}>(optional)</span>
-                    </label>
-                    <input
-                      className="reg-input"
-                      type="text"
-                      placeholder="e.g. school, work, injury"
-                      value={form.gapReason}
-                      onChange={(e) => handleChange('gapReason', e.target.value)}
-                    />
+                    }}>Current / Previous Belt <span style={{ color: '#E74C3C' }}>*</span></label>
+                    <select
+                      className="reg-select"
+                      value={form.previousBelt}
+                      onChange={(e) => handleChange('previousBelt', e.target.value)}
+                      required
+                    >
+                      <option value="">Select a belt</option>
+                      {BELT_OPTIONS.map((belt) => (
+                        <option key={belt} value={belt}>{belt}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Year joined — applies to both programs (membership
+                    history, not belt-specific) */}
+                {isWushu && isExisting && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    <label style={{
+                      fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+                      color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                    }}>Year You Joined EagleGlow <span style={{ color: '#E74C3C' }}>*</span></label>
+                    <select
+                      className="reg-select"
+                      value={form.yearJoined}
+                      onChange={(e) => handleChange('yearJoined', e.target.value)}
+                      required
+                    >
+                      <option value="">Select a year</option>
+                      {YEAR_OPTIONS.map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
 

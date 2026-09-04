@@ -9,10 +9,10 @@ type MemberRow = {
   phone: string | null;
   role: User["role"];
   status: User["status"];
+  program: User["program"];
   registration_type: User["registrationType"];
   previous_belt: string | null;
   year_joined: string | null;
-  gap_reason: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   health_notes: string | null;
@@ -37,10 +37,10 @@ function toUser(row: MemberRow): User {
     beltId: row.belt_id ?? undefined,
     role: row.role,
     status: row.status,
+    program: row.program,
     registrationType: row.registration_type,
     previousBelt: row.previous_belt ?? undefined,
     yearJoined: row.year_joined ?? undefined,
-    gapReason: row.gap_reason ?? undefined,
     adminNotes: row.admin_notes ?? [],
     nameCorrectionRequest: row.name_correction_request ?? null,
     createdAt: row.created_at,
@@ -48,7 +48,7 @@ function toUser(row: MemberRow): User {
 }
 
 const SELECT_COLUMNS =
-  "id, name, email, phone, role, status, registration_type, previous_belt, year_joined, gap_reason, emergency_contact_name, emergency_contact_phone, health_notes, photo_url, belt_id, admin_notes, name_correction_request, created_at";
+  "id, name, email, phone, role, status, program, registration_type, previous_belt, year_joined, emergency_contact_name, emergency_contact_phone, health_notes, photo_url, belt_id, admin_notes, name_correction_request, created_at";
 
 // Admin-only (admin or super_admin). Verifies the caller before using the
 // service-role client to read every non-admin member — RLS would otherwise

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { signIn, getCurrentSessionRole } from '@/src/lib/auth';
+import { signIn, getCurrentSessionInfo } from '@/src/lib/auth';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,8 +35,14 @@ export default function Login() {
       if (redirectTo) {
         router.push(redirectTo);
       } else {
-        const role = await getCurrentSessionRole();
-        router.push(role === 'admin' || role === 'super_admin' ? '/admin' : '/dashboard');
+                const { role, program } = await getCurrentSessionInfo();
+        if (role === 'admin' || role === 'super_admin') {
+          router.push('/admin');
+        } else if (program === 'fitness') {
+          router.push('/dashboard/fitness');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (err) {
       setStatus('error');

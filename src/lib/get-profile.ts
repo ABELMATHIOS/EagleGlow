@@ -12,6 +12,9 @@ type ProfileRow = {
   photo_url: string | null;
   belt_id: string | null;
   status: User["status"];
+  // Which program this member belongs to — drives whether Profile shows
+  // the Belt Pathway section and belt-colored avatar styling.
+  program: User["program"];
   created_at: string;
 };
 
@@ -27,6 +30,7 @@ function toProfile(row: ProfileRow) {
     photoUrl: row.photo_url ?? undefined,
     beltId: row.belt_id ?? undefined,
     status: row.status,
+    program: row.program,
     createdAt: row.created_at,
   };
 }
@@ -47,7 +51,7 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null
   const { data, error } = await supabase
     .from("users")
     .select(
-      "id, name, email, phone, emergency_contact_name, emergency_contact_phone, health_notes, photo_url, belt_id, status, created_at"
+      "id, name, email, phone, emergency_contact_name, emergency_contact_phone, health_notes, photo_url, belt_id, status, program, created_at"
     )
     .eq("id", authUser.id)
     .single();

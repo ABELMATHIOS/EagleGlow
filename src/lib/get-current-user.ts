@@ -10,6 +10,9 @@ type UserRow = {
   role: User["role"];
   status: User["status"];
   registration_type: User["registrationType"];
+  // Which program this member belongs to — used for route gating (see
+  // DashboardPage's fitness redirect) and the admin Members program filter.
+  program: User["program"];
   created_at: string;
   // health_notes, admin_notes, etc. deliberately omitted here — this is
   // for "who's logged in and what can they see" checks (Navbar, route
@@ -18,7 +21,7 @@ type UserRow = {
 
 function toUser(row: UserRow): Pick<
   User,
-  "id" | "name" | "email" | "phone" | "beltId" | "role" | "status" | "registrationType" | "createdAt"
+  "id" | "name" | "email" | "phone" | "beltId" | "role" | "status" | "registrationType" | "program" | "createdAt"
 > {
   return {
     id: row.id,
@@ -29,6 +32,7 @@ function toUser(row: UserRow): Pick<
     role: row.role,
     status: row.status,
     registrationType: row.registration_type,
+    program: row.program,
     createdAt: row.created_at,
   };
 }
@@ -46,7 +50,7 @@ export async function getCurrentUser() {
 
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, phone, belt_id, role, status, registration_type, created_at")
+    .select("id, name, email, phone, belt_id, role, status, registration_type, program, created_at")
     .eq("id", authUser.id)
     .single();
 

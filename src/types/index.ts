@@ -1,7 +1,8 @@
 export type Role             = "guest" | "member" | "admin" | "super_admin";
 export type Status = "pending" | "active" | "graduated" | "serving" | "paused" | "withdrawn" | "served";
-export type RegistrationType = "new" | "training" | "returning";
+export type RegistrationType = "new" | "existing";
 export type ClassType        = "wushu" | "fitness";
+export type Program          = "wushu" | "fitness";
 export type TutorialCategory = "taolu" | "kicks" | "sanda" | "gymnastics" | "flexibility" | "general" | "instructor_reference";
 export type GalleryCategory  = "graduation" | "competition" | "training";
 
@@ -45,10 +46,10 @@ export interface User {
   beltId?:                 string; // -> Belt.id
   role:                    Role;
   status:                  Status;
+  program:                 Program; // "wushu" | "fitness" — existing members default to "wushu"
   registrationType:        RegistrationType;
-  previousBelt?:           string; // free-text, self-reported at registration (training/returning only)
+  previousBelt?:           string; // free-text, self-reported at registration (existing only)
   yearJoined?:             string; // self-reported, may not match createdAt
-  gapReason?:              string; // returning members only
   adminNotes:              AdminNote[];
   nameCorrectionRequest:   NameCorrectionRequest | null;
   createdAt:               string;

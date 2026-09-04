@@ -17,10 +17,12 @@ export type SignUpInput = {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   healthNotes?: string;
-  registrationType: "new" | "training" | "returning";
+  // Which program this registration is for — drives the users.program
+  // column read by the admin Members program filter / switch-program action.
+  program: "wushu" | "fitness";
+  registrationType: "new" | "existing";
   previousBelt?: string;
   yearJoined?: string;
-  gapReason?: string;
 };
 
 export async function signUp(input: SignUpInput) {
@@ -42,14 +44,13 @@ export async function signUp(input: SignUpInput) {
         emergencyContactName: input.emergencyContactName,
         emergencyContactPhone: input.emergencyContactPhone,
         healthNotes: input.healthNotes,
+        program: input.program,
         registrationType: input.registrationType,
         previousBelt: input.previousBelt,
         yearJoined: input.yearJoined,
-        gapReason: input.gapReason,
       },
     },
   });
-
   if (error) throw error;
   return data;
 }
@@ -103,4 +104,29 @@ export async function getCurrentSessionRole(): Promise<"guest" | "member" | "adm
     .single();
 
   return (data?.role as "guest" | "member" | "admin" | "super_admin") ?? "guest";
+}
+// Client-side role + program read — used right after login to decide
+// which dashboard to send the member to (Wushu vs Fitness), without a
+// second separate query.
+export async function getCurrentSessionInfo(): Promise<{
+  role: "guest" | "member" | "admin" | "super_admin";
+  program: "wushu" | "fitness" | null;
+}> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { role: "guest", program: null };
+
+  const { data } = await supabase
+    .from("users")
+    .select("role, program")
+    .eq("id", user.id)
+    .single();
+
+  return {
+    role: (data?.role as "guest" | "member" | "admin" | "super_admin") ?? "guest",
+    program: (data?.program as "wushu" | "fitness") ?? null,
+  };
 }

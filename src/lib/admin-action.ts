@@ -273,3 +273,20 @@ export async function deleteMemberPermanently(userId: string) {
 
   return res.json();
 }
+// Call from AdminMembers.tsx's "Switch Program" flow. beltId is required
+// only when switching TO wushu (the route enforces this). Throws on
+// failure so the caller can show an error toast/message.
+export async function switchProgram(userId: string, program: "wushu" | "fitness", beltId?: string) {
+  const res = await fetch(`/api/admin/users/${userId}/program`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ program, beltId }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to switch program");
+  }
+
+  return res.json();
+}

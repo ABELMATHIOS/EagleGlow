@@ -18,6 +18,8 @@ const PHONE_RE = /^[+\d][\d\s-]{6,}$/; // starts with + or a digit, at least 7 m
 export default function ProfilePage({ user, belts }: ProfileProps) {
   const router = useRouter();
 
+  const isWushu = user.program === 'wushu';
+
   // Real member data, passed in from app/profile/page.tsx (a Server
   // Component that fetches it via getCurrentUserProfile()). Replaces the
   // old CURRENT_USER mock import — MEMBER keeps the same shape as before so
@@ -58,6 +60,12 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
   const [correctionError, setCorrectionError] = useState<string | null>(null);
  const currentBelt = belts.find((b) => b.order === MEMBER.beltOrder) ?? belts[0];
   const nextBelt = belts.find((b) => b.order === MEMBER.beltOrder + 1);
+
+  // Fitness has no belt system, so the avatar ring/glow can't be
+  // belt-colored for them — use a fixed gold accent instead, matching the
+  // rest of the site's Fitness-safe styling (Register.tsx, FitnessDashboard).
+  const avatarColor = isWushu ? currentBelt.color : '#C9A84C';
+  const avatarShadow = isWushu ? currentBelt.shadow : 'rgba(201,168,76,0.35)';
 
   const emailValid = EMAIL_RE.test(draft.email);
   const phoneValid = PHONE_RE.test(draft.phone);
@@ -416,8 +424,8 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
         .delay-4 { animation-delay: 0.4s; opacity: 0; }
 
         @keyframes glowPulse {
-          0%, 100% { box-shadow: 0 0 20px ${currentBelt.shadow}; }
-          50%       { box-shadow: 0 0 40px ${currentBelt.shadow}, 0 0 60px ${currentBelt.shadow}; }
+          0%, 100% { box-shadow: 0 0 20px ${avatarShadow}; }
+          50%       { box-shadow: 0 0 40px ${avatarShadow}, 0 0 60px ${avatarShadow}; }
         }
       `}</style>
 
@@ -471,8 +479,8 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
                 background: (editing ? draft.avatar : saved.avatar)
                   ? `center/cover no-repeat url(${editing ? draft.avatar : saved.avatar})`
                   : "linear-gradient(135deg, #1a1a1a, #2a2a2a)",
-                border: `3px solid ${currentBelt.color}`,
-                boxShadow: `0 0 24px ${currentBelt.shadow}`,
+                border: `3px solid ${avatarColor}`,
+                boxShadow: `0 0 24px ${avatarShadow}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 animation: "glowPulse 3s ease-in-out infinite",
                 fontSize: "42px",
@@ -481,7 +489,7 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
                 overflow: "hidden",
               }}
             >
-              {!(editing ? draft.avatar : saved.avatar) && "🥋"}
+              {!(editing ? draft.avatar : saved.avatar) && (isWushu ? "🥋" : "💪")}
             </div>
             {editing && (
               <div
@@ -504,14 +512,16 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
               onChange={handlePhotoChange}
               style={{ display: "none" }}
             />
-            {/* Belt badge */}
-            <div style={{
-              position: "absolute", bottom: "-4px", right: "-4px",
-              width: "32px", height: "32px", borderRadius: "50%",
-              background: currentBelt.color,
-              border: `2px solid #0a0a0a`,
-              boxShadow: `0 0 10px ${currentBelt.shadow}`,
-            }} />
+            {/* Belt badge — Wushu only, since Fitness has no belt to show */}
+            {isWushu && (
+              <div style={{
+                position: "absolute", bottom: "-4px", right: "-4px",
+                width: "32px", height: "32px", borderRadius: "50%",
+                background: currentBelt.color,
+                border: `2px solid #0a0a0a`,
+                boxShadow: `0 0 10px ${currentBelt.shadow}`,
+              }} />
+            )}
           </div>
 
           {/* Name + info */}
@@ -547,7 +557,8 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
           </div>
         </div>
 
-        {/* ── BELT PATHWAY ── */}
+        {/* ── BELT PATHWAY — Wushu only ── */}
+        {isWushu && (
         <div
           className="fade-up delay-2"
           style={{
@@ -652,6 +663,7 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
             )}
           </div>
         </div>
+        )}
 
         {/* ── EDIT / INFO SECTION ── */}
         <div

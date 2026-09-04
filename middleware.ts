@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("users")
-      .select("role, status")
+      .select("role, status, program")
       .eq("id", user.id)
       .single();
 
@@ -58,6 +58,14 @@ export async function middleware(request: NextRequest) {
     if (!needsAdmin && !isApproved) {
       const url = request.nextUrl.clone();
       url.pathname = "/auth/pending";
+      return NextResponse.redirect(url);
+    }
+
+    // Fitness members belong on their own dashboard, not the Wushu one —
+    // redirect them there if they land on /dashboard directly.
+    if (!needsAdmin && isApproved && profile?.program === "fitness" && pathname === "/dashboard") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard/fitness";
       return NextResponse.redirect(url);
     }
   }

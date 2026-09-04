@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { AdminNote, NameCorrectionRequest, Status, RegistrationType, User, Belt } from '@/src/types';
-import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword, addMemberNote, deleteMemberNote, setMemberAdminRole, deleteMemberPermanently } from '@/src/lib/admin-action';
+import { AdminNote, NameCorrectionRequest, Status, RegistrationType, Program, User, Belt } from '@/src/types';
+import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword, addMemberNote, deleteMemberNote, setMemberAdminRole, deleteMemberPermanently, switchProgram } from '@/src/lib/admin-action';
 
 // This admin view keeps its own flat shape (fullName/belt-as-name instead of
 // name/beltId) because that's what this screen's filtering and CSV export
@@ -19,10 +19,10 @@ type Member = {
   email: string;
   phone: string;
   role: User['role'];
+  program: Program;
   registrationType: RegistrationType;
   previousBelt: string;
   yearJoined: string;
-  gapReason: string;
   emergencyName: string;
   emergencyPhone: string;
   healthNotes: string;
@@ -31,11 +31,6 @@ type Member = {
   beltId: string;
   belt: string;
   status: Status;
-  // The status this member held immediately before being paused — set when
-  // Suspend fires, restored (and cleared) when Reactivate fires. Requires a
-  // `previous_status` column server-side and a matching `previousStatus`
-  // field on the User type (see /src/types) — null for members who've
-  // never been paused.
   previousStatus: Status | null;
   registeredAt: string;
   photoUrl: string;
@@ -48,10 +43,6 @@ type AdminMembersProps = {
   initialAdmins: User[]; // only populated for super_admin callers
 };
 
-// Converts the real User rows (from getAllMembers()) into this screen's flat
-// Member shape. `belts` is the real Supabase belt list (order ascending) —
-// used to resolve belt_id -> display name/color instead of the old mock
-// src/data/belts.ts, whose fake ids ("belt-1"..) didn't match real FKs.
 function toMembers(users: User[], belts: Belt[]): Member[] {
   const beltById = new Map(belts.map((b) => [b.id, b]));
   const fallbackBelt = belts[0];
@@ -63,10 +54,10 @@ function toMembers(users: User[], belts: Belt[]): Member[] {
       email: u.email,
       phone: u.phone ?? '',
       role: u.role,
+      program: u.program,
       registrationType: u.registrationType,
       previousBelt: u.previousBelt ?? '',
       yearJoined: u.yearJoined ?? '',
-      gapReason: u.gapReason ?? '',
       emergencyName: u.emergencyContactName ?? '',
       emergencyPhone: u.emergencyContactPhone ?? '',
       healthNotes: u.healthNotes ?? '',
@@ -84,8 +75,7 @@ function toMembers(users: User[], belts: Belt[]): Member[] {
 
 const registrationTypeLabel: Record<Member['registrationType'], string> = {
   new: 'New',
-  training: 'Currently Training',
-  returning: 'Returning',
+  existing: 'Existing Member',
 };
 
 const STATUS_COLORS: Record<Member['status'], string> = {
@@ -111,7 +101,8 @@ const TOP_BELT_ONLY_STATUSES: Status[] = ['graduated', 'serving', 'served'];
 const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Full Name',               get: (m) => m.fullName },
   { header: 'Phone',                   get: (m) => m.phone },
-  { header: 'Current Belt',            get: (m) => m.belt },
+  { header: 'Program',                 get: (m) => (m.program === 'wushu' ? 'Wushu' : 'Fitness') },
+  { header: 'Current Belt',            get: (m) => (m.program === 'fitness' ? 'N/A' : m.belt) },
   { header: 'Year Joined',             get: (m) => m.yearJoined },
   { header: 'Emergency Contact Name',  get: (m) => m.emergencyName },
   { header: 'Emergency Contact Phone', get: (m) => m.emergencyPhone },
@@ -124,6 +115,7 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
   const [search,        setSearch]        = useState('');
   const [filterStatus,  setFilterStatus]  = useState('all');
   const [filterBelt,    setFilterBelt]    = useState('all');
+  const [filterProgram, setFilterProgram] = useState('all'); // 'all' | 'wushu' | 'fitness'
   const [selected,      setSelected]      = useState<string | null>(null);
   const [promoting,     setPromoting]     = useState(false);
   const [promoteTarget, setPromoteTarget] = useState(''); // belt id, not name
@@ -136,8 +128,8 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
   // White, which is just beltId's null-fallback and was misleading admins
   // into thinking White was their real/current status.
   function beltForPendingMember(m: Member): Belt | undefined {
-    const isReturning = m.registrationType === 'training' || m.registrationType === 'returning';
-    const matched = isReturning ? beltByName.get(m.previousBelt) : undefined;
+    const isExisting = m.registrationType === 'existing';
+    const matched = isExisting ? beltByName.get(m.previousBelt) : undefined;
     return matched ?? belts[0];
   }
 
@@ -153,6 +145,15 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
   const [downgradeTarget,  setDowngradeTarget]  = useState(''); // belt id
   const [downgradingSave,  setDowngradingSave]  = useState<string | null>(null);
   const [downgradeError,   setDowngradeError]   = useState<string | null>(null);
+
+  // Switch Program — Wushu <-> Fitness. Wushu -> Fitness applies instantly
+  // (no picker needed). Fitness -> Wushu requires picking a belt first
+  // (opens the same kind of inline picker as Promote/Downgrade), since a
+  // Fitness member may never have had one.
+  const [switchingProgram, setSwitchingProgram] = useState(false); // belt-picker panel open (fitness -> wushu only)
+  const [switchBeltTarget, setSwitchBeltTarget] = useState(''); // belt id
+  const [switchSaving,     setSwitchSaving]     = useState<string | null>(null); // member id currently saving
+  const [switchError,      setSwitchError]      = useState<string | null>(null);
 
   // Real: calls PATCH /api/admin/users/[id]/status. Shared by Withdraw,
   // Suspend, Reactivate, Mark Serving, and End Service — all just status
@@ -193,9 +194,10 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
   const filtered = members.filter((m) => {
     const matchSearch = m.fullName.toLowerCase().includes(search.toLowerCase()) ||
       m.email.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === 'all' || m.status === filterStatus;
-    const matchBelt   = filterBelt   === 'all' || m.belt   === filterBelt;
-    return matchSearch && matchStatus && matchBelt;
+    const matchStatus  = filterStatus  === 'all' || m.status  === filterStatus;
+    const matchBelt    = filterBelt    === 'all' || m.belt    === filterBelt;
+    const matchProgram = filterProgram === 'all' || m.program === filterProgram;
+    return matchSearch && matchStatus && matchBelt && matchProgram;
   });
 
     const selectedMember = members.find((m) => m.id === selected) ?? admins.find((m) => m.id === selected);
@@ -211,6 +213,8 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
     setPromoting(false);
     setDowngrading(false);
     setDowngradeError(null);
+    setSwitchingProgram(false);
+    setSwitchError(null);
     setEditingContact(false);
     setNewNote('');
     setApproveError(null);
@@ -409,6 +413,48 @@ const reactivateMember = (id: string) => {
       setDowngradeError(err instanceof Error ? err.message : 'Failed to update belt');
     } finally {
       setDowngradingSave(null);
+    }
+  };
+
+  // Switch Program — Wushu -> Fitness applies immediately (nothing to
+  // pick). Fitness -> Wushu opens a belt picker first, prefilled with the
+  // member's previousBelt if it matches a real belt, else the lowest belt
+  // — same "closest sensible default" convention as Promote/Downgrade.
+  const startSwitchToWushu = (member: Member) => {
+    const matched = belts.find((b) => b.name === member.previousBelt);
+    setSwitchBeltTarget((matched ?? belts[0])?.id ?? '');
+    setSwitchError(null);
+    setSwitchingProgram(true);
+  };
+
+  const switchToFitness = async (id: string) => {
+    setSwitchSaving(id);
+    setSwitchError(null);
+    try {
+      await switchProgram(id, 'fitness');
+      // Wushu -> Fitness only flips the program flag — belt_id is left
+      // untouched server-side so it's still there if they switch back.
+      updateMember(id, { program: 'fitness' });
+    } catch (err) {
+      setSwitchError(err instanceof Error ? err.message : 'Failed to switch program');
+    } finally {
+      setSwitchSaving(null);
+    }
+  };
+
+  const confirmSwitchToWushu = async (id: string) => {
+    if (!switchBeltTarget) return;
+    setSwitchSaving(id);
+    setSwitchError(null);
+    try {
+      await switchProgram(id, 'wushu', switchBeltTarget);
+      const newBelt = beltById.get(switchBeltTarget);
+      updateMember(id, { program: 'wushu', beltId: switchBeltTarget, belt: newBelt?.name ?? '' });
+      setSwitchingProgram(false);
+    } catch (err) {
+      setSwitchError(err instanceof Error ? err.message : 'Failed to switch program');
+    } finally {
+      setSwitchSaving(null);
     }
   };
 
@@ -650,7 +696,7 @@ const reactivateMember = (id: string) => {
           '',
           m.fullName,
           m.phone || '—',
-          m.belt,
+          m.program === 'fitness' ? 'N/A' : m.belt,
           m.yearJoined || '—',
           m.emergencyName || '—',
           m.emergencyPhone || '—',
@@ -928,6 +974,15 @@ const reactivateMember = (id: string) => {
         />
         <select
           className="admin-select"
+          value={filterProgram}
+          onChange={(e) => setFilterProgram(e.target.value)}
+        >
+          <option value="all">All Programs</option>
+          <option value="wushu">Wushu</option>
+          <option value="fitness">Fitness</option>
+        </select>
+        <select
+          className="admin-select"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
         >
@@ -997,6 +1052,7 @@ const reactivateMember = (id: string) => {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Program</th>
                 <th>Belt</th>
                 <th>Status</th>
                 <th>Registered</th>
@@ -1005,7 +1061,7 @@ const reactivateMember = (id: string) => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
+                  <td colSpan={5} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
                     No members found
                   </td>
                 </tr>
@@ -1022,18 +1078,25 @@ const reactivateMember = (id: string) => {
                       {m.nameCorrectionRequest && <span title="Name correction pending review" style={{ fontSize: 11 }}>✎</span>}
                     </span>
                   </td>
+                  <td style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {m.program === 'wushu' ? 'Wushu' : 'Fitness'}
+                  </td>
                   <td>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: m.status === 'pending'
-                          ? beltForPendingMember(m)?.color
-                          : beltByName.get(m.belt)?.color,
-                        border: m.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
-                        flexShrink: 0,
-                      }} />
-                      {m.status === 'pending' ? (beltForPendingMember(m)?.name ?? m.belt) : m.belt}
-                    </span>
+                    {m.program === 'fitness' ? (
+                      <span style={{ color: 'rgba(255,255,255,0.2)' }}>N/A</span>
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          width: 8, height: 8, borderRadius: '50%',
+                          background: m.status === 'pending'
+                            ? beltForPendingMember(m)?.color
+                            : beltByName.get(m.belt)?.color,
+                          border: m.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
+                          flexShrink: 0,
+                        }} />
+                        {m.status === 'pending' ? (beltForPendingMember(m)?.name ?? m.belt) : m.belt}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <span style={{
@@ -1130,30 +1193,83 @@ const reactivateMember = (id: string) => {
               )}
 
               {/* Core info */}
+              <div className="detail-row"><span>Program</span><span>{selectedMember.program === 'wushu' ? 'Wushu' : 'Fitness'}</span></div>
               <div className="detail-row"><span>Registered</span><span>{selectedMember.registeredAt}</span></div>
               <div className="detail-row"><span>Registration Type</span><span>{registrationTypeLabel[selectedMember.registrationType]}</span></div>
               {selectedMember.previousBelt && (
                 <div className="detail-row"><span>Previous Belt</span><span>{selectedMember.previousBelt}{selectedMember.yearJoined ? ` (joined ${selectedMember.yearJoined})` : ''}</span></div>
               )}
-              {selectedMember.gapReason && (
-                <div className="detail-row"><span>Gap Reason</span><span>{selectedMember.gapReason}</span></div>
-              )}
 
              {/* Belt */}
               <div className="detail-row" style={{ alignItems: 'center', marginBottom: 12 }}>
                 <span>{selectedMember.status === 'pending' ? 'Belt (on approval)' : 'Belt'}</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                  <span style={{
-                    width: 10, height: 10, borderRadius: '50%',
-                    background: selectedMember.status === 'pending'
-                      ? beltForPendingMember(selectedMember)?.color
-                      : beltByName.get(selectedMember.belt)?.color,
-                    border: selectedMember.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
-                  }} />
-                  {selectedMember.status === 'pending'
-                    ? (beltForPendingMember(selectedMember)?.name ?? selectedMember.belt)
-                    : selectedMember.belt}
-                </span>
+                {selectedMember.program === 'fitness' ? (
+                  <span style={{ color: 'rgba(255,255,255,0.2)' }}>N/A</span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                    <span style={{
+                      width: 10, height: 10, borderRadius: '50%',
+                      background: selectedMember.status === 'pending'
+                        ? beltForPendingMember(selectedMember)?.color
+                        : beltByName.get(selectedMember.belt)?.color,
+                      border: selectedMember.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
+                    }} />
+                    {selectedMember.status === 'pending'
+                      ? (beltForPendingMember(selectedMember)?.name ?? selectedMember.belt)
+                      : selectedMember.belt}
+                  </span>
+                )}
+              </div>
+
+              {/* ── Switch Program — Wushu <-> Fitness ── */}
+              <div style={{
+                marginBottom: 20, paddingTop: 16,
+                borderTop: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <p className="section-label">Program</p>
+                {!switchingProgram ? (
+                  <button
+                    className="admin-btn-ghost"
+                    style={{ width: '100%' }}
+                    onClick={() => {
+                      if (selectedMember.program === 'wushu') {
+                        switchToFitness(selectedMember.id);
+                      } else {
+                        startSwitchToWushu(selectedMember);
+                      }
+                    }}
+                    disabled={switchSaving === selectedMember.id}
+                  >
+                    {switchSaving === selectedMember.id
+                      ? 'Saving...'
+                      : selectedMember.program === 'wushu' ? '⇄ Switch to Fitness' : '⇄ Switch to Wushu'}
+                  </button>
+                ) : (
+                  <div>
+                    <select
+                      className="admin-select"
+                      style={{ width: '100%', marginBottom: 8 }}
+                      value={switchBeltTarget}
+                      onChange={(e) => setSwitchBeltTarget(e.target.value)}
+                    >
+                      {belts.map((b) => (
+                        <option key={b.id} value={b.id}>{b.name} Belt</option>
+                      ))}
+                    </select>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="admin-btn-gold"
+                        style={{ flex: 1 }}
+                        onClick={() => confirmSwitchToWushu(selectedMember.id)}
+                        disabled={switchSaving === selectedMember.id}
+                      >
+                        {switchSaving === selectedMember.id ? 'Saving...' : 'Confirm Switch'}
+                      </button>
+                      <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setSwitchingProgram(false)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {switchError && <p className="field-error">{switchError}</p>}
               </div>
 
               {/* ── Contact info — editable ── */}
@@ -1388,86 +1504,90 @@ const reactivateMember = (id: string) => {
                 {/* Active — Promote belt, Downgrade belt, Withdraw, Suspend */}
                 {selectedMember.status === 'active' && (
                   <>
-                    {!promoting ? (
-                      <button
-                        className="admin-btn-gold"
-                        style={{ width: '100%' }}
-                        onClick={() => startPromote(selectedMember.beltId)}
-                        disabled={belts.length > 0 && selectedMember.beltId === belts[belts.length - 1].id}
-                      >
-                        ↑ Promote Belt
-                      </button>
-                    ) : (
-                      <div>
-                        <select
-                          className="admin-select"
-                          style={{ width: '100%', marginBottom: 8 }}
-                          value={promoteTarget}
-                          onChange={(e) => setPromoteTarget(e.target.value)}
-                        >
-                          {belts
-                            .slice(belts.findIndex((b) => b.id === selectedMember.beltId) + 1)
-                            .map((b, i, arr) => (
-                              <option key={b.id} value={b.id}>
-                                {b.name} Belt{i === arr.length - 1 ? ' — auto-marks Graduated' : ''}
-                              </option>
-                            ))}
-                        </select>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                    {selectedMember.program === 'wushu' && (
+                      <>
+                        {!promoting ? (
                           <button
                             className="admin-btn-gold"
-                            style={{ flex: 1 }}
-                            onClick={() => confirmPromote(selectedMember.id)}
-                            disabled={promotingSave === selectedMember.id}
+                            style={{ width: '100%' }}
+                            onClick={() => startPromote(selectedMember.beltId)}
+                            disabled={belts.length > 0 && selectedMember.beltId === belts[belts.length - 1].id}
                           >
-                            {promotingSave === selectedMember.id ? 'Saving...' : 'Confirm'}
+                            ↑ Promote Belt
                           </button>
-                          <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setPromoting(false)}>Cancel</button>
-                        </div>
-                        {promoteError && <p className="field-error">{promoteError}</p>}
-                      </div>
-                    )}
-
-                    {/* Downgrade Belt — hidden entirely at White (belts[0]),
-                        since there's nothing lower to move to. */}
-                    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
-                      !downgrading ? (
-                        <button
-                          className="admin-btn-ghost"
-                          style={{ width: '100%' }}
-                          onClick={() => startDowngrade(selectedMember.beltId)}
-                        >
-                          ↓ Downgrade Belt
-                        </button>
-                      ) : (
-                        <div>
-                          <select
-                            className="admin-select"
-                            style={{ width: '100%', marginBottom: 8 }}
-                            value={downgradeTarget}
-                            onChange={(e) => setDowngradeTarget(e.target.value)}
-                          >
-                            {belts
-                              .slice(0, belts.findIndex((b) => b.id === selectedMember.beltId))
-                              .reverse()
-                              .map((b) => (
-                                <option key={b.id} value={b.id}>{b.name} Belt</option>
-                              ))}
-                          </select>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button
-                              className="admin-btn-danger"
-                              style={{ flex: 1 }}
-                              onClick={() => confirmDowngrade(selectedMember.id)}
-                              disabled={downgradingSave === selectedMember.id}
+                        ) : (
+                          <div>
+                            <select
+                              className="admin-select"
+                              style={{ width: '100%', marginBottom: 8 }}
+                              value={promoteTarget}
+                              onChange={(e) => setPromoteTarget(e.target.value)}
                             >
-                              {downgradingSave === selectedMember.id ? 'Saving...' : 'Confirm Downgrade'}
-                            </button>
-                            <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setDowngrading(false)}>Cancel</button>
+                              {belts
+                                .slice(belts.findIndex((b) => b.id === selectedMember.beltId) + 1)
+                                .map((b, i, arr) => (
+                                  <option key={b.id} value={b.id}>
+                                    {b.name} Belt{i === arr.length - 1 ? ' — auto-marks Graduated' : ''}
+                                  </option>
+                                ))}
+                            </select>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                className="admin-btn-gold"
+                                style={{ flex: 1 }}
+                                onClick={() => confirmPromote(selectedMember.id)}
+                                disabled={promotingSave === selectedMember.id}
+                              >
+                                {promotingSave === selectedMember.id ? 'Saving...' : 'Confirm'}
+                              </button>
+                              <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setPromoting(false)}>Cancel</button>
+                            </div>
+                            {promoteError && <p className="field-error">{promoteError}</p>}
                           </div>
-                          {downgradeError && <p className="field-error">{downgradeError}</p>}
-                        </div>
-                      )
+                        )}
+
+                        {/* Downgrade Belt — hidden entirely at White (belts[0]),
+                            since there's nothing lower to move to. */}
+                        {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+                          !downgrading ? (
+                            <button
+                              className="admin-btn-ghost"
+                              style={{ width: '100%' }}
+                              onClick={() => startDowngrade(selectedMember.beltId)}
+                            >
+                              ↓ Downgrade Belt
+                            </button>
+                          ) : (
+                            <div>
+                              <select
+                                className="admin-select"
+                                style={{ width: '100%', marginBottom: 8 }}
+                                value={downgradeTarget}
+                                onChange={(e) => setDowngradeTarget(e.target.value)}
+                              >
+                                {belts
+                                  .slice(0, belts.findIndex((b) => b.id === selectedMember.beltId))
+                                  .reverse()
+                                  .map((b) => (
+                                    <option key={b.id} value={b.id}>{b.name} Belt</option>
+                                  ))}
+                              </select>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button
+                                  className="admin-btn-danger"
+                                  style={{ flex: 1 }}
+                                  onClick={() => confirmDowngrade(selectedMember.id)}
+                                  disabled={downgradingSave === selectedMember.id}
+                                >
+                                  {downgradingSave === selectedMember.id ? 'Saving...' : 'Confirm Downgrade'}
+                                </button>
+                                <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={() => setDowngrading(false)}>Cancel</button>
+                              </div>
+                              {downgradeError && <p className="field-error">{downgradeError}</p>}
+                            </div>
+                          )
+                        )}
+                      </>
                     )}
 
                     <button
@@ -1501,7 +1621,7 @@ const reactivateMember = (id: string) => {
                       {statusSaving === selectedMember.id ? 'Saving...' : '★ Mark as Serving (Assistant Instructor)'}
                     </button>
 
-                    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+                    {selectedMember.program === 'wushu' && belts.length > 0 && selectedMember.beltId !== belts[0].id && (
                       !downgrading ? (
                         <button
                           className="admin-btn-ghost"
@@ -1555,7 +1675,7 @@ const reactivateMember = (id: string) => {
                       {statusSaving === selectedMember.id ? 'Saving...' : '● End Service'}
                     </button>
 
-                    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+                    {selectedMember.program === 'wushu' && belts.length > 0 && selectedMember.beltId !== belts[0].id && (
                       !downgrading ? (
                         <button
                           className="admin-btn-ghost"
@@ -1620,7 +1740,7 @@ const reactivateMember = (id: string) => {
       {statusSaving === selectedMember.id ? 'Saving...' : '↺ Restore Access'}
     </button>
 
-    {belts.length > 0 && selectedMember.beltId !== belts[0].id && (
+    {selectedMember.program === 'wushu' && belts.length > 0 && selectedMember.beltId !== belts[0].id && (
       !downgrading ? (
         <button
           className="admin-btn-ghost"
