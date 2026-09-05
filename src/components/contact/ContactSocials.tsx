@@ -4,7 +4,7 @@ import React from 'react';
 const SOCIALS = [
   {
     name: 'Telegram',
-    href: 'https://t.me/eagleglow',
+    href: 'https://t.me/eagleglow_official',
   },
   {
     name: 'Instagram',

@@ -290,3 +290,23 @@ export async function switchProgram(userId: string, program: "wushu" | "fitness"
 
   return res.json();
 }
+// ── Add this to your existing src/lib/admin-action.ts ──
+// Same client-side action pattern as updateAboutContent() in that file —
+// calls the PATCH route, used from AdminRules.tsx (a 'use client' component).
+// Needs the RulesContent type, imported from the server-only rules.ts file
+// (importing only a *type* from a "use server"-adjacent file is fine —
+// types are erased at compile time and never pull in next/headers).
+import type { RulesContent } from '@/src/lib/rules';
+
+export async function updateRules(patch: { title?: string; content?: string }): Promise<RulesContent> {
+  const res = await fetch('/api/admin/rules', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to update rules');
+  }
+  return res.json();
+}

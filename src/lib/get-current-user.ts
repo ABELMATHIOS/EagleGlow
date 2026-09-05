@@ -13,6 +13,10 @@ type UserRow = {
   // Which program this member belongs to — used for route gating (see
   // DashboardPage's fitness redirect) and the admin Members program filter.
   program: User["program"];
+  // Self-reported join year (existing members only) — used to show the
+  // real join year on the dashboard instead of the account signup date
+  // for members who trained here before creating an online account.
+  year_joined: User["yearJoined"];
   created_at: string;
   // health_notes, admin_notes, etc. deliberately omitted here — this is
   // for "who's logged in and what can they see" checks (Navbar, route
@@ -21,7 +25,7 @@ type UserRow = {
 
 function toUser(row: UserRow): Pick<
   User,
-  "id" | "name" | "email" | "phone" | "beltId" | "role" | "status" | "registrationType" | "program" | "createdAt"
+  "id" | "name" | "email" | "phone" | "beltId" | "role" | "status" | "registrationType" | "program" | "yearJoined" | "createdAt"
 > {
   return {
     id: row.id,
@@ -33,6 +37,7 @@ function toUser(row: UserRow): Pick<
     status: row.status,
     registrationType: row.registration_type,
     program: row.program,
+    yearJoined: row.year_joined ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -50,7 +55,7 @@ export async function getCurrentUser() {
 
   const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, phone, belt_id, role, status, registration_type, program, created_at")
+    .select("id, name, email, phone, belt_id, role, status, registration_type, program, year_joined, created_at")
     .eq("id", authUser.id)
     .single();
 

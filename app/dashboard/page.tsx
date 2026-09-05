@@ -16,6 +16,14 @@ export default async function DashboardPage() {
     redirect('/admin');
   }
 
+  // Fitness members don't have the real (Wushu) dashboard content yet —
+  // send them to the dedicated Coming Soon page instead. Placed after the
+  // admin check so an admin who happens to be tagged 'fitness' still lands
+  // on /admin, not /dashboard/fitness.
+  if (user.program === 'fitness') {
+    redirect('/dashboard/fitness');
+  }
+
   const belts = await getBelts();
   const lowestBeltOrder = Math.min(...belts.map((b) => b.order));
   const userBelt = belts.find((b) => b.id === user.beltId);
@@ -29,6 +37,7 @@ export default async function DashboardPage() {
         name: user.name,
         beltId: user.beltId,
         status: user.status,
+        yearJoined: user.yearJoined,
         createdAt: user.createdAt,
       }}
       progress={progress}
