@@ -283,9 +283,12 @@ function AlbumCard({
           pointer-events: none;
         }
         .preview-main:hover .preview-overlay,
-        .preview-small:hover .preview-overlay {
-          background: rgba(0,0,0,0.35);
-        }
+.preview-small:hover .preview-overlay {
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
         .video-only-thumb {
           aspect-ratio: 16/9;
           background: #0d0d0d;
@@ -372,27 +375,25 @@ function AlbumCard({
         ) : album.previews.length > 0 ? (
           /* 3 preview photos grid — each slot falls back cleanly on load failure */
           <div className="preview-grid-3">
-            <div className="preview-main">
-              <PreviewImage
-                src={album.previews[0]}
-                alt="Preview 1"
-                onClick={() => onOpenPhoto(album.previews, 0)}
-              />
-              <div className="preview-overlay" onClick={() => onOpenPhoto(album.previews, 0)}>
-                <span style={{ fontSize: 20, opacity: 0 }}>🔍</span>
-              </div>
-            </div>
-            {album.previews.slice(1, 3).map((src, i) => (
-              <div key={i} className="preview-small">
-                <PreviewImage
-                  src={src}
-                  alt={`Preview ${i + 2}`}
-                  onClick={() => onOpenPhoto(album.previews, i + 1)}
-                />
-                <div className="preview-overlay" onClick={() => onOpenPhoto(album.previews, i + 1)} />
-              </div>
-            ))}
-          </div>
+  <div className="preview-main" onClick={() => onOpenPhoto(album.previews, 0)}>
+    <PreviewImage
+      src={album.previews[0]}
+      alt="Preview 1"
+      onClick={() => onOpenPhoto(album.previews, 0)}
+    />
+    <div className="preview-overlay" />
+  </div>
+  {album.previews.slice(1, 3).map((src, i) => (
+    <div key={i} className="preview-small" onClick={() => onOpenPhoto(album.previews, i + 1)}>
+      <PreviewImage
+        src={src}
+        alt={`Preview ${i + 2}`}
+        onClick={() => onOpenPhoto(album.previews, i + 1)}
+      />
+      <div className="preview-overlay" />
+    </div>
+  ))}
+</div>
         ) : album.youtubeId ? (
           /* No uploaded photos, but has a video — use the YouTube thumbnail */
           <div
