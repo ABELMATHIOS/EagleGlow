@@ -9,7 +9,8 @@ import { signUp } from '@/src/lib/auth';
 
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => CURRENT_YEAR - i);
+const CURRENT_ET_YEAR = CURRENT_YEAR - 8; // Ethiopian year is ~8 years behind
+const YEAR_OPTIONS = Array.from({ length: 30 }, (_, i) => CURRENT_ET_YEAR - i);
 
 type RegisterProps = {
   beltOptions: string[];
@@ -32,6 +33,9 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
     email: '',
     phone: '',
     dateOfBirth: '',
+    dobDay: '',     
+    dobMonth: '',     
+    dobYear: '',  
     sex: '' as '' | 'male' | 'female',
     heightCm: '',
     weightKg: '',
@@ -648,23 +652,87 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                   />
                 </div>
 
-                {/* Date of Birth */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={{
-                    fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
-                    color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                  }}>
-                    Date of Birth <span style={{ color: '#E74C3C' }}>*</span>
-                  </label>
-                  <input
-                    className="reg-input"
-                    type="date"
-                    value={form.dateOfBirth}
-                    onChange={(e) => handleChange('dateOfBirth', e.target.value)}
-                    required
-                  />
-                </div>
+                {/* Date of Birth — Ethiopian Calendar */}
+<div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+  <label style={{
+    fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600,
+    color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+  }}>
+    Date of Birth <span style={{ color: '#E74C3C' }}>*</span>
+    <span style={{ fontWeight: 400, textTransform: 'none', marginLeft: 6, opacity: 0.5 }}>
+      (Ethiopian Calendar)
+    </span>
+  </label>
+  <div style={{ display: 'flex', gap: 8 }}>
+
+    {/* Day */}
+    <select
+      className="reg-select"
+      style={{ flex: 1 }}
+      value={form.dobDay}
+      onChange={(e) => {
+        const day = e.target.value;
+        handleChange('dobDay', day);
+        if (day && form.dobMonth && form.dobYear) {
+          handleChange('dateOfBirth', `${day}-${form.dobMonth}-${form.dobYear}`);
+        }
+      }}
+    >
+      <option value="">ቀን</option>
+      {Array.from(
+        { length: form.dobMonth === 'ጳጉሜ' ? 6 : 30 },
+        (_, i) => i + 1
+      ).map((d) => (
+        <option key={d} value={d}>{d}</option>
+      ))}
+    </select>
+
+    {/* Month */}
+    <select
+      className="reg-select"
+      style={{ flex: 2 }}
+      value={form.dobMonth}
+      onChange={(e) => {
+        const month = e.target.value;
+        handleChange('dobMonth', month);
+        if (form.dobDay && month && form.dobYear) {
+          handleChange('dateOfBirth', `${form.dobDay}-${month}-${form.dobYear}`);
+        }
+      }}
+    >
+      <option value="">ወር</option>
+      {[
+        'መስከረም','ጥቅምት','ህዳር','ታህሳስ',
+        'ጥር','የካቲት','መጋቢት','ሚያዚያ',
+        'ግንቦት','ሰኔ','ሐምሌ','ነሐሴ','ጳጉሜ'
+      ].map((month) => (
+        <option key={month} value={month}>{month}</option>
+      ))}
+    </select>
+
+    {/* Year */}
+    <select
+      className="reg-select"
+      style={{ flex: 1.2 }}
+      value={form.dobYear}
+      onChange={(e) => {
+        const year = e.target.value;
+        handleChange('dobYear', year);
+        if (form.dobDay && form.dobMonth && year) {
+          handleChange('dateOfBirth', `${form.dobDay}-${form.dobMonth}-${year}`);
+        }
+      }}
+    >
+      <option value="">ዓ.ም</option>
+      {Array.from({ length: 50 }, (_, i) => 2017 - i).map((y) => (
+        <option key={y} value={y}>{y}</option>
+      ))}
+    </select>
+
+  </div>
+  <p className="field-note">ቀን / ወር / ዓ.ም — የኢትዮጵያ አቆጣጠር</p>
+</div>
 
                 {/* Sex */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -676,15 +744,16 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                     Sex <span style={{ color: '#E74C3C' }}>*</span>
                   </label>
                   <select
-                    className="reg-input"
-                    value={form.sex}
-                    onChange={(e) => handleChange('sex', e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
+  className="reg-select"
+  value={form.sex}
+  onChange={(e) => handleChange('sex', e.target.value)}
+  required
+  style={{ color: form.sex === '' ? 'rgba(255,255,255,0.25)' : '#fff' }}
+>
+  <option value="" disabled style={{ color: 'rgba(255,255,255,0.25)' }}>Select</option>
+  <option value="male" style={{ color: '#fff' }}>Male</option>
+  <option value="female" style={{ color: '#fff' }}>Female</option>
+</select>
                 </div>
 
                 {/* Height & Weight */}
