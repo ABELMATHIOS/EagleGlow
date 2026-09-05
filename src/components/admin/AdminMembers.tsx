@@ -100,9 +100,9 @@ const TOP_BELT_ONLY_STATUSES: Status[] = ['graduated', 'serving', 'served'];
 // downloaded file somewhere only the coach/admin controls.
 const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Full Name',               get: (m) => m.fullName },
+  { header: 'Program',                 get: (m) => m.program === 'fitness' ? 'Fitness' : 'Wushu' },
   { header: 'Phone',                   get: (m) => m.phone },
-  { header: 'Program',                 get: (m) => (m.program === 'wushu' ? 'Wushu' : 'Fitness') },
-  { header: 'Current Belt',            get: (m) => (m.program === 'fitness' ? 'N/A' : m.belt) },
+  { header: 'Current Belt',            get: (m) => m.program === 'fitness' ? 'N/A' : m.belt },
   { header: 'Year Joined',             get: (m) => m.yearJoined },
   { header: 'Emergency Contact Name',  get: (m) => m.emergencyName },
   { header: 'Emergency Contact Phone', get: (m) => m.emergencyPhone },
@@ -692,29 +692,30 @@ const reactivateMember = (id: string) => {
       doc.line(margin, 25, pageWidth - margin, 25);
 
       const PHOTO_COL = 0;
-      const BELT_COL = 3;
+      const BELT_COL = 4;
 
       autoTable(doc, {
         startY: 30,
-        head: [['', 'Name', 'Phone', 'Belt', 'Joined', 'Emergency Name', 'Emergency Phone', 'Health / Medical Notes']],
-        body: filtered.map((m) => [
-          '',
-          m.fullName,
-          m.phone || '—',
-          m.program === 'fitness' ? 'N/A' : m.belt,
-          m.yearJoined || '—',
-          m.emergencyName || '—',
-          m.emergencyPhone || '—',
-          m.healthNotes || '—',
-        ]),
+        head: [['', 'Name', 'Program', 'Phone', 'Belt', 'Joined', 'Emergency Name', 'Emergency Phone', 'Health / Medical Notes']],
+body: filtered.map((m) => [
+  '',
+  m.fullName,
+  m.program === 'fitness' ? 'Fitness' : 'Wushu',
+  m.phone || '—',
+  m.program === 'fitness' ? 'N/A' : m.belt,
+  m.yearJoined || '—',
+  m.emergencyName || '—',
+  m.emergencyPhone || '—',
+  m.healthNotes || '—',
+]),
         styles: { fontSize: 8, cellPadding: 3, overflow: 'linebreak', minCellHeight: 12 },
         headStyles: { fillColor: [201, 168, 76], textColor: [17, 17, 17], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [250, 248, 242] },
         columnStyles: {
-          [PHOTO_COL]: { cellWidth: 14 },
-          [BELT_COL]: { cellWidth: 22 },
-          7: { cellWidth: 55 },
-        },
+  [PHOTO_COL]: { cellWidth: 14 },
+  [BELT_COL]: { cellWidth: 22 },
+  8: { cellWidth: 55 },
+},
         didDrawCell: (data) => {
           if (data.cell.section !== 'body') return;
 
