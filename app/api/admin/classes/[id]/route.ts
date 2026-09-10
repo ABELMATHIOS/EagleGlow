@@ -18,7 +18,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   const body = await request.json();
-  const { day, time, title, type, level, instructor, durationMinutes, tag } = body;
+  const { day, time, endTime, title, type, location, level, instructor, tag } = body;
 
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase
@@ -26,11 +26,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .update({
       ...(day !== undefined && { day }),
       ...(time !== undefined && { time: time.trim() }),
+      ...(endTime !== undefined && { end_time: endTime.trim() }),
       ...(title !== undefined && { title: title.trim() }),
       ...(type !== undefined && { type }),
+      ...(location !== undefined && { location }),
       ...(level !== undefined && { level: level?.trim() || null }),
       ...(instructor !== undefined && { instructor: instructor?.trim() || null }),
-      ...(durationMinutes !== undefined && { duration_minutes: Number(durationMinutes) }),
       ...(tag !== undefined && { tag: tag || null }),
     })
     .eq("id", id)

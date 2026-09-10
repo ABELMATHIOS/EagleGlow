@@ -78,6 +78,15 @@ const registrationTypeLabel: Record<Member['registrationType'], string> = {
   existing: 'Existing Member',
 };
 
+const PROGRAM_LABEL: Record<Program, string> = {
+  wushu: 'Wushu',
+  fitness: 'Fitness',
+  sanda: 'Sanda',
+};
+
+// Only Wushu has a belt system — Fitness and Sanda both show N/A.
+const hasBeltSystem = (program: Program) => program === 'wushu';
+
 const STATUS_COLORS: Record<Member['status'], string> = {
   pending:   '#E74C3C',
   active:    '#2ECC71',
@@ -100,9 +109,9 @@ const TOP_BELT_ONLY_STATUSES: Status[] = ['graduated', 'serving', 'served'];
 // downloaded file somewhere only the coach/admin controls.
 const CSV_COLUMNS: { header: string; get: (m: Member) => string }[] = [
   { header: 'Full Name',               get: (m) => m.fullName },
-  { header: 'Program',                 get: (m) => m.program === 'fitness' ? 'Fitness' : 'Wushu' },
+    { header: 'Program',                 get: (m) => PROGRAM_LABEL[m.program] },
   { header: 'Phone',                   get: (m) => m.phone },
-  { header: 'Current Belt',            get: (m) => m.program === 'fitness' ? 'N/A' : m.belt },
+  { header: 'Current Belt',            get: (m) => hasBeltSystem(m.program) ? m.belt : 'N/A' },
   { header: 'Year Joined',             get: (m) => m.yearJoined },
   { header: 'Emergency Contact Name',  get: (m) => m.emergencyName },
   { header: 'Emergency Contact Phone', get: (m) => m.emergencyPhone },
@@ -425,21 +434,29 @@ const reactivateMember = (id: string) => {
   // pick). Fitness -> Wushu opens a belt picker first, prefilled with the
   // member's previousBelt if it matches a real belt, else the lowest belt
   // — same "closest sensible default" convention as Promote/Downgrade.
-  const startSwitchToWushu = (member: Member) => {
-    const matched = belts.find((b) => b.name === member.previousBelt);
-    setSwitchBeltTarget((matched ?? belts[0])?.id ?? '');
-    setSwitchError(null);
-    setSwitchingProgram(true);
+    // Only switching TO Wushu needs a belt picker first (a Fitness or Fight
+  // Team member may never have had one). Switching to Fitness or Fight
+  // Team — from any other program — applies immediately, same as the
+  // original Wushu -> Fitness behavior.
+  const handleSwitchProgramClick = (member: Member, targetProgram: Program) => {
+    if (targetProgram === 'wushu') {
+      const matched = belts.find((b) => b.name === member.previousBelt);
+      setSwitchBeltTarget((matched ?? belts[0])?.id ?? '');
+      setSwitchError(null);
+      setSwitchingProgram(true);
+    } else {
+      switchToNonWushuProgram(member.id, targetProgram);
+    }
   };
 
-  const switchToFitness = async (id: string) => {
+  const switchToNonWushuProgram = async (id: string, targetProgram: 'fitness' | 'sanda') => {
     setSwitchSaving(id);
     setSwitchError(null);
     try {
-      await switchProgram(id, 'fitness');
-      // Wushu -> Fitness only flips the program flag — belt_id is left
-      // untouched server-side so it's still there if they switch back.
-      updateMember(id, { program: 'fitness' });
+      await switchProgram(id, targetProgram);
+      // Program flag only — belt_id is left untouched server-side so it's
+      // still there if they switch back to Wushu later.
+      updateMember(id, { program: targetProgram });
     } catch (err) {
       setSwitchError(err instanceof Error ? err.message : 'Failed to switch program');
     } finally {
@@ -700,9 +717,9 @@ const reactivateMember = (id: string) => {
 body: filtered.map((m) => [
   '',
   m.fullName,
-  m.program === 'fitness' ? 'Fitness' : 'Wushu',
+  PROGRAM_LABEL[m.program],
   m.phone || '—',
-  m.program === 'fitness' ? 'N/A' : m.belt,
+  hasBeltSystem(m.program) ? m.belt : 'N/A',
   m.yearJoined || '—',
   m.emergencyName || '—',
   m.emergencyPhone || '—',
@@ -978,7 +995,7 @@ body: filtered.map((m) => [
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 200 }}
         />
-        <select
+               <select
           className="admin-select"
           value={filterProgram}
           onChange={(e) => setFilterProgram(e.target.value)}
@@ -986,6 +1003,7 @@ body: filtered.map((m) => [
           <option value="all">All Programs</option>
           <option value="wushu">Wushu</option>
           <option value="fitness">Fitness</option>
+          <option value="sanda">Sanda</option>
         </select>
         <select
           className="admin-select"
@@ -1084,11 +1102,11 @@ body: filtered.map((m) => [
                       {m.nameCorrectionRequest && <span title="Name correction pending review" style={{ fontSize: 11 }}>✎</span>}
                     </span>
                   </td>
-                  <td style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {m.program === 'wushu' ? 'Wushu' : 'Fitness'}
+                    <td style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {PROGRAM_LABEL[m.program]}
                   </td>
                   <td>
-                    {m.program === 'fitness' ? (
+                    {!hasBeltSystem(m.program) ? (
                       <span style={{ color: 'rgba(255,255,255,0.2)' }}>N/A</span>
                     ) : (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -1199,7 +1217,7 @@ body: filtered.map((m) => [
               )}
 
               {/* Core info */}
-              <div className="detail-row"><span>Program</span><span>{selectedMember.program === 'wushu' ? 'Wushu' : 'Fitness'}</span></div>
+                            <div className="detail-row"><span>Program</span><span>{PROGRAM_LABEL[selectedMember.program]}</span></div>
               <div className="detail-row"><span>Registered</span><span>{selectedMember.registeredAt}</span></div>
               <div className="detail-row"><span>Registration Type</span><span>{registrationTypeLabel[selectedMember.registrationType]}</span></div>
               {selectedMember.previousBelt && (
@@ -1209,7 +1227,7 @@ body: filtered.map((m) => [
              {/* Belt */}
               <div className="detail-row" style={{ alignItems: 'center', marginBottom: 12 }}>
                 <span>{selectedMember.status === 'pending' ? 'Belt (on approval)' : 'Belt'}</span>
-                {selectedMember.program === 'fitness' ? (
+                                {!hasBeltSystem(selectedMember.program) ? (
                   <span style={{ color: 'rgba(255,255,255,0.2)' }}>N/A</span>
                 ) : (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
@@ -1227,29 +1245,28 @@ body: filtered.map((m) => [
                 )}
               </div>
 
-              {/* ── Switch Program — Wushu <-> Fitness ── */}
+                            {/* ── Switch Program — Wushu / Fitness / Sanda ── */}
               <div style={{
                 marginBottom: 20, paddingTop: 16,
                 borderTop: '1px solid rgba(255,255,255,0.06)',
               }}>
                 <p className="section-label">Program</p>
                 {!switchingProgram ? (
-                  <button
-                    className="admin-btn-ghost"
-                    style={{ width: '100%' }}
-                    onClick={() => {
-                      if (selectedMember.program === 'wushu') {
-                        switchToFitness(selectedMember.id);
-                      } else {
-                        startSwitchToWushu(selectedMember);
-                      }
-                    }}
-                    disabled={switchSaving === selectedMember.id}
-                  >
-                    {switchSaving === selectedMember.id
-                      ? 'Saving...'
-                      : selectedMember.program === 'wushu' ? '⇄ Switch to Fitness' : '⇄ Switch to Wushu'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(Object.keys(PROGRAM_LABEL) as Program[])
+                      .filter((p) => p !== selectedMember.program)
+                      .map((targetProgram) => (
+                        <button
+                          key={targetProgram}
+                          className="admin-btn-ghost"
+                          style={{ flex: 1 }}
+                          onClick={() => handleSwitchProgramClick(selectedMember, targetProgram)}
+                          disabled={switchSaving === selectedMember.id}
+                        >
+                          {switchSaving === selectedMember.id ? 'Saving...' : `⇄ ${PROGRAM_LABEL[targetProgram]}`}
+                        </button>
+                      ))}
+                  </div>
                 ) : (
                   <div>
                     <select

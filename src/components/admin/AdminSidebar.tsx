@@ -46,6 +46,25 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    label: 'Sanda Videos',
+    href: '/admin/sanda-tutorials',
+    icon: (
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+      </svg>
+    ),
+  },
+  {
+    label: 'Disciplines',
+    href: '/admin/disciplines',
+    icon: (
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M8 12l2.5 2.5L16 9"/>
+      </svg>
+    ),
+  },
+  {
     label: 'Classes',
     href: '/admin/classes',
     icon: (
@@ -88,7 +107,7 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
-  {
+    {
     label: 'Rules',
     href: '/admin/rules',
     icon: (
@@ -198,8 +217,6 @@ export default function AdminSidebar() {
         }
       `}</style>
 
-      {/* Menu trigger — only rendered while the sidebar is closed, so it can
-          never sit on top of the logo once the sidebar slides into view. */}
       {!isOpen && (
         <button
           className="admin-mobile-trigger"
@@ -225,8 +242,6 @@ export default function AdminSidebar() {
       />
 
       <aside className={`admin-sidebar ${isOpen ? 'open' : ''}`}>
-        {/* Close button — now anchored top-right, inside the sidebar, so it
-            sits next to the logo instead of off-screen. */}
         <button
           onClick={() => setIsOpen(false)}
           aria-label="Close admin menu"

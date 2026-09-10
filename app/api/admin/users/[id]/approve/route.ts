@@ -49,10 +49,12 @@ export async function POST(
     // requiring the admin to separately remember to use "Promote Belt"
     // after approving. Only applied if the member doesn't already have a
     // belt_id set (e.g. re-approving someone shouldn't reset a belt an
-    // admin has since adjusted by hand).
+    // admin has since adjusted by hand) AND is actually a Wushu
+    // registration — Fitness/Sanda members never have a belt system, and
+    // without this check they'd incorrectly get a belt_id assigned here.
     const { data: target, error: targetError } = await adminSupabase
       .from("users")
-      .select("registration_type, previous_belt, belt_id")
+      .select("program, registration_type, previous_belt, belt_id")
       .eq("id", targetUserId)
       .single();
 
@@ -62,7 +64,7 @@ export async function POST(
 
     const update: Record<string, unknown> = { status: "active", role: "member" };
 
-    if (target && !target.belt_id) {
+    if (target && target.program === "wushu" && !target.belt_id) {
       const { data: belts, error: beltsError } = await adminSupabase
         .from("belts")
         .select("id, name, sort_order")

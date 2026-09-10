@@ -19,7 +19,7 @@ export type SignUpInput = {
   healthNotes?: string;
   // Which program this registration is for — drives the users.program
   // column read by the admin Members program filter / switch-program action.
-  program: "wushu" | "fitness";
+    program: "wushu" | "fitness" | "sanda";
   registrationType: "new" | "existing";
   previousBelt?: string;
   yearJoined?: string;
@@ -110,7 +110,7 @@ export async function getCurrentSessionRole(): Promise<"guest" | "member" | "adm
 // second separate query.
 export async function getCurrentSessionInfo(): Promise<{
   role: "guest" | "member" | "admin" | "super_admin";
-  program: "wushu" | "fitness" | null;
+  program: "wushu" | "fitness" | "sanda" | null;
 }> {
   const supabase = createClient();
   const {
@@ -127,6 +127,6 @@ export async function getCurrentSessionInfo(): Promise<{
 
   return {
     role: (data?.role as "guest" | "member" | "admin" | "super_admin") ?? "guest",
-    program: (data?.program as "wushu" | "fitness") ?? null,
+    program: (data?.program as "wushu" | "fitness" | "sanda") ?? null,
   };
 }

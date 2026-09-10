@@ -1,8 +1,8 @@
 export type Role             = "guest" | "member" | "admin" | "super_admin";
 export type Status = "pending" | "active" | "graduated" | "serving" | "paused" | "withdrawn" | "served";
 export type RegistrationType = "new" | "existing";
-export type ClassType        = "wushu" | "fitness";
-export type Program          = "wushu" | "fitness";
+export type ClassType = "wushu" | "fitness" | "sanda";
+export type Program          = "wushu" | "fitness" | "sanda";
 export type TutorialCategory = "taolu" | "kicks" | "sanda" | "gymnastics" | "flexibility" | "general" | "instructor_reference";
 export type GalleryCategory  = "graduation" | "competition" | "training";
 
@@ -16,6 +16,18 @@ export interface Belt {
   border?:     string;   // optional accent border (black belt gets a gold border)
   order:       number;   // 1 (White) .. 7 (Black) — progression order
   description: string;
+}
+
+// Sanda's equivalent of Belt — admin-manageable, but not a
+// progression ladder (no order-based promotion logic). Conditioning is
+// just a normal row here alongside Sanda, Kickboxing, Muay Thai, etc.
+export interface Discipline {
+  id:          string;
+  name:        string;   // e.g. "Sanda"
+  slug:        string;   // e.g. "sanda" — for URL / lookup use
+  order:       number;   // controls display order in the discipline grid, admin-set
+  description?: string;
+  createdAt:   string;
 }
 
 export interface AdminNote {
@@ -57,7 +69,11 @@ export interface User {
 
 export interface Tutorial {
   id:              string;
-  beltId:          string; // -> Belt.id
+  // Exactly one of beltId / disciplineId is set per tutorial — beltId for
+  // Wushu content (progression-based), disciplineId for Sanda content
+  // (Sanda, Kickboxing, Conditioning, etc. — no progression order).
+  beltId?:         string; // -> Belt.id, Wushu tutorials only
+  disciplineId?:   string; // -> Discipline.id, Sanda tutorials only
   title:           string;
   description?:     string;
   videoUrl?:        string; // absent = not yet recorded/uploaded
@@ -82,15 +98,16 @@ export type ClassTag = "kids" | "adult" | "kiremt"
 
 // Update the ClassSchedule interface to include the new optional field:
 export interface ClassSchedule {
-  id:              string;
-  day:             string; // "Monday" .. "Saturday"
-  time:            string; // "06:00"
-  title:           string;
-  type:            ClassType;
-  level?:          string;
-  instructor?:     string;
-  durationMinutes: number;
-  tag?:            ClassTag; // "kids" | "kiremt" — optional public badge, e.g. Kids program or Kiremt (summer-only) session
+  id:          string;
+  day:         string;
+  time:        string;      // start time
+  endTime:     string;      // end time
+  title:       string;
+  type:        ClassType;
+  location:    string;
+  level?:      string;
+  instructor?: string;
+  tag?:        ClassTag;
 }
 
 export interface GalleryAlbum {

@@ -276,7 +276,7 @@ export async function deleteMemberPermanently(userId: string) {
 // Call from AdminMembers.tsx's "Switch Program" flow. beltId is required
 // only when switching TO wushu (the route enforces this). Throws on
 // failure so the caller can show an error toast/message.
-export async function switchProgram(userId: string, program: "wushu" | "fitness", beltId?: string) {
+export async function switchProgram(userId: string, program: "wushu" | "fitness" | "sanda", beltId?: string) {
   const res = await fetch(`/api/admin/users/${userId}/program`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -309,4 +309,48 @@ export async function updateRules(patch: { title?: string; content?: string }): 
     throw new Error(body.error ?? 'Failed to update rules');
   }
   return res.json();
+}
+// ── Discipline CRUD — used by AdminDisciplines.tsx ──
+import type { Discipline } from '@/src/types';
+
+export async function createDiscipline(input: {
+  name: string;
+  slug: string;
+  order: number;
+  description?: string;
+}): Promise<Discipline> {
+  const res = await fetch('/api/admin/disciplines', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to create discipline');
+  }
+  return res.json();
+}
+
+export async function updateDiscipline(
+  id: string,
+  patch: { name?: string; slug?: string; order?: number; description?: string }
+): Promise<Discipline> {
+  const res = await fetch(`/api/admin/disciplines/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to update discipline');
+  }
+  return res.json();
+}
+
+export async function deleteDiscipline(id: string): Promise<void> {
+  const res = await fetch(`/api/admin/disciplines/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to delete discipline');
+  }
 }

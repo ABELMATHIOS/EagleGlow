@@ -10,10 +10,9 @@ export async function PATCH(
     const { id: targetUserId } = await params;
     const { program, beltId } = await request.json();
 
-    if (program !== "wushu" && program !== "fitness") {
+        if (program !== "wushu" && program !== "fitness" && program !== "sanda") {
       return NextResponse.json({ error: "Invalid program value" }, { status: 400 });
     }
-
     const supabase = await createClient();
     const {
       data: { user: caller },

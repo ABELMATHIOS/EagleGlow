@@ -35,11 +35,13 @@ export default function Login() {
       if (redirectTo) {
         router.push(redirectTo);
       } else {
-                const { role, program } = await getCurrentSessionInfo();
+                        const { role, program } = await getCurrentSessionInfo();
         if (role === 'admin' || role === 'super_admin') {
           router.push('/admin');
         } else if (program === 'fitness') {
           router.push('/dashboard/fitness');
+        } else if (program === 'sanda') {
+          router.push('/dashboard/sanda');
         } else {
           router.push('/dashboard');
         }

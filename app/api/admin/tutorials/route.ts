@@ -17,20 +17,26 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
 
   const body = await request.json();
-  const { beltId, title, description, videoUrl, durationMinutes, category, order, published } = body;
+  const { beltId, disciplineId, title, description, videoUrl, durationMinutes, category, order, published } = body;
 
   if (!title || typeof title !== "string" || !title.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
   }
-  if (!beltId) {
-    return NextResponse.json({ error: "Belt is required" }, { status: 400 });
+  // Exactly one of beltId / disciplineId must be set — a tutorial belongs
+  // to either a Wushu belt or a Sanda discipline, never both, never neither.
+  if (!beltId && !disciplineId) {
+    return NextResponse.json({ error: "Either a belt or a discipline is required" }, { status: 400 });
+  }
+  if (beltId && disciplineId) {
+    return NextResponse.json({ error: "A tutorial cannot have both a belt and a discipline" }, { status: 400 });
   }
 
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase
     .from("tutorials")
     .insert({
-      belt_id: beltId,
+      belt_id: beltId ?? null,
+      discipline_id: disciplineId ?? null,
       title: title.trim(),
       description: description?.trim() || null,
       video_url: videoUrl?.trim() || null,
@@ -46,6 +52,8 @@ export async function POST(request: NextRequest) {
 
   revalidatePath("/tutorials");
   revalidatePath("/admin/tutorials");
+  revalidatePath("/admin/sanda-tutorials");
+  revalidatePath("/dashboard/sanda");
 
   return NextResponse.json({ tutorial: data });
 }

@@ -1,22 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Tutorial, TutorialCategory, Belt } from '@/src/types';
+import { Tutorial, TutorialCategory, Discipline } from '@/src/types';
 import { createTutorial, updateTutorial, deleteTutorial as deleteTutorialAction } from '@/src/lib/admin-action';
 import { parseYoutubeUrl, toCanonicalYoutubeUrl } from '@/src/lib/youtube';
-import TutorialsIndex from '@/src/components/members/TutorialsIndex'; // TODO: fix path to match your repo
-import TutorialDetail from '@/src/components/members/TutorialDetail'; // TODO: fix path to match your repo
 
-// 'general' intentionally excluded — not currently used, even though the
-// shared TutorialCategory type still permits it.
-const CATEGORIES: Exclude<TutorialCategory, 'general'>[] = ['taolu', 'kicks', 'sanda', 'gymnastics', 'flexibility', 'instructor_reference'];
+const CATEGORIES: Exclude<TutorialCategory, 'general' | 'taolu' | 'kicks' | 'gymnastics' | 'flexibility'>[] = ['sanda', 'instructor_reference'];
 
-const CATEGORY_LABELS: Record<Exclude<TutorialCategory, 'general'>, string> = {
-  taolu: 'Taolu',
-  kicks: 'Kicks',
-  sanda: 'Sanda',
-  gymnastics: 'Gymnastics',
-  flexibility: 'Flexibility',
+const CATEGORY_LABELS: Record<typeof CATEGORIES[number], string> = {
+  sanda: 'Technique',
   instructor_reference: 'Instructor Reference',
 };
 
@@ -28,7 +20,7 @@ function formatDuration(minutes?: number): string {
 }
 
 type Draft = {
-  beltId: string;
+  disciplineId: string;
   title: string;
   category: TutorialCategory;
   durationMinutes: string;
@@ -37,24 +29,18 @@ type Draft = {
   published: boolean;
 };
 
-type AdminTutorialsProps = {
-  initialTutorials: Tutorial[]; // real Supabase tutorials, fetched via getAllTutorials()
-  belts: Belt[]; // real Supabase belts, already sorted by `order` ascending
+type AdminSandaTutorialsProps = {
+  initialTutorials: Tutorial[]; // real Supabase tutorials, fetched via getAllTutorials() and filtered to discipline-tagged ones
+  disciplines: Discipline[]; // real Supabase disciplines, already sorted by `order` ascending
 };
 
-export default function AdminTutorials({ initialTutorials, belts }: AdminTutorialsProps) {
-  const beltById = new Map(belts.map((b) => [b.id, b]));
-  // This admin page manages belt-based (Wushu) tutorials only — Sanda's
-// discipline-tagged tutorials have their own admin page. Filtering here
-// also narrows beltId from optional to required, resolving the two
-// beltId-possibly-undefined errors below.
-
-  const BELT_COLORS: Record<string, string> = Object.fromEntries(belts.map((b) => [b.name, b.color]));
+export default function AdminSandaTutorials({ initialTutorials, disciplines }: AdminSandaTutorialsProps) {
+  const disciplineById = new Map(disciplines.map((d) => [d.id, d]));
 
   const EMPTY_DRAFT: Draft = {
-    beltId: belts[0]?.id ?? '',
+    disciplineId: disciplines[0]?.id ?? '',
     title: '',
-    category: 'taolu',
+    category: 'sanda',
     durationMinutes: '',
     videoUrl: '',
     description: '',
@@ -62,7 +48,7 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
   };
 
   const [tutorials,     setTutorials]     = useState<Tutorial[]>(initialTutorials);
-  const [filterBelt,    setFilterBelt]    = useState('all');
+  const [filterDiscipline, setFilterDiscipline] = useState('all');
   const [selected,      setSelected]      = useState<string | null>(null);
   const [adding,        setAdding]        = useState(false);
   const [draft,         setDraft]         = useState<Draft>(EMPTY_DRAFT);
@@ -72,39 +58,17 @@ export default function AdminTutorials({ initialTutorials, belts }: AdminTutoria
   const [deletingId,    setDeletingId]    = useState<string | null>(null);
   const [togglingId,    setTogglingId]    = useState<string | null>(null);
 
-// This admin page manages belt-based (Wushu) tutorials only — Sanda's
-// discipline-tagged tutorials have their own admin page. Filtering here
-// also narrows beltId from optional to required, resolving the two
-// beltId-possibly-undefined errors below.
-const wushuTutorials = tutorials.filter(
-  (t): t is Tutorial & { beltId: string } => Boolean(t.beltId)
-);
-
-  // --- Preview mode: shows the real member-facing views using live data ---
-  const [previewing,          setPreviewing]          = useState(false);
-  const [previewIncludeDraft, setPreviewIncludeDraft] = useState(false);
-  // 'dashboard' = belt overview grid, or a belt slug = that belt's tutorial list
-  const [previewView, setPreviewView] = useState<'dashboard' | string>('dashboard');
-
-  const rows = wushuTutorials.map((t) => ({
-  id: t.id,
-  belt: beltById.get(t.beltId)?.name ?? 'Unknown',
+  const rows = tutorials.map((t) => ({
+    id: t.id,
+    discipline: t.disciplineId ? (disciplineById.get(t.disciplineId)?.name ?? 'Unknown') : 'Unknown',
     title: t.title,
     duration: formatDuration(t.durationMinutes),
     published: t.published,
   }));
 
-  const filtered = filterBelt === 'all' ? rows : rows.filter((t) => t.belt === filterBelt);
+  const filtered = filterDiscipline === 'all' ? rows : rows.filter((t) => t.discipline === filterDiscipline);
   const selectedTutorial = tutorials.find((t) => t.id === selected);
   const showForm = adding || Boolean(selectedTutorial);
-
-  // Every belt unlocked, so admins can preview all levels regardless of
-  // their own progress. Highest `order` value works for any belt scheme.
-  const maxBeltOrder = belts.reduce((max, b) => Math.max(max, b.order), 0);
-
-  const previewTutorials = previewIncludeDraft
-    ? tutorials
-    : tutorials.filter((t) => t.published);
 
   const startAdd = () => {
     setDraft(EMPTY_DRAFT);
@@ -114,10 +78,10 @@ const wushuTutorials = tutorials.filter(
   };
 
   const startEdit = (id: string) => {
-  const t = wushuTutorials.find((tt) => tt.id === id);
-    if (!t) return;
+    const t = tutorials.find((tt) => tt.id === id);
+    if (!t || !t.disciplineId) return;
     setDraft({
-      beltId: t.beltId,
+      disciplineId: t.disciplineId,
       title: t.title,
       category: t.category,
       durationMinutes: t.durationMinutes != null ? String(t.durationMinutes) : '',
@@ -135,7 +99,7 @@ const wushuTutorials = tutorials.filter(
     setSelected(null);
   };
 
-  const draftValid = draft.title.trim().length > 0 && Boolean(draft.beltId);
+  const draftValid = draft.title.trim().length > 0 && Boolean(draft.disciplineId);
 
   async function saveDraft() {
     if (!draftValid) return;
@@ -145,10 +109,11 @@ const wushuTutorials = tutorials.filter(
       const ref = draft.videoUrl.trim() ? parseYoutubeUrl(draft.videoUrl) : null;
       const videoUrl = ref ? toCanonicalYoutubeUrl(ref) : null;
 
-      const payload = {
-        beltId: draft.beltId,
+            const payload = {
+        disciplineId: draft.disciplineId,
+        beltId: null, // explicit — satisfies the route's belt/discipline exclusivity guard
         title: draft.title.trim(),
-        category: draft.category,
+        category: 'sanda' as const,
         durationMinutes: draft.durationMinutes ? Number(draft.durationMinutes) : null,
         videoUrl,
         description: draft.description.trim() || null,
@@ -159,7 +124,7 @@ const wushuTutorials = tutorials.filter(
         const { tutorial } = await updateTutorial(selected, payload);
         setTutorials((prev) => prev.map((t) => (t.id === selected ? toTutorial(tutorial) : t)));
       } else {
-        const siblingCount = tutorials.filter((t) => t.beltId === draft.beltId).length;
+        const siblingCount = tutorials.filter((t) => t.disciplineId === draft.disciplineId).length;
         const { tutorial } = await createTutorial({ ...payload, order: siblingCount + 1 });
         setTutorials((prev) => [...prev, toTutorial(tutorial)]);
       }
@@ -168,7 +133,7 @@ const wushuTutorials = tutorials.filter(
       setSelected(null);
       setDraft(EMPTY_DRAFT);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save tutorial');
+      setSaveError(err instanceof Error ? err.message : 'Failed to save video');
     } finally {
       setSaving(false);
     }
@@ -181,7 +146,7 @@ const wushuTutorials = tutorials.filter(
       setTutorials((prev) => prev.filter((t) => t.id !== id));
       if (selected === id) setSelected(null);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to delete tutorial');
+      setSaveError(err instanceof Error ? err.message : 'Failed to delete video');
     } finally {
       setDeletingId(null);
     }
@@ -195,111 +160,10 @@ const wushuTutorials = tutorials.filter(
       const { tutorial } = await updateTutorial(id, { published: !t.published });
       setTutorials((prev) => prev.map((tt) => (tt.id === id ? toTutorial(tutorial) : tt)));
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to update tutorial');
+      setSaveError(err instanceof Error ? err.message : 'Failed to update video');
     } finally {
       setTogglingId(null);
     }
-  }
-
-  function openPreview() {
-    setPreviewView('dashboard');
-    setPreviewing(true);
-  }
-
-  // --- Preview overlay: renders the real member views on top of admin ---
-  if (previewing) {
-    return (
-      <>
-        <style>{`
-          .preview-tab {
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            padding: 7px 14px;
-            border-radius: 100px;
-            cursor: pointer;
-            white-space: nowrap;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.55);
-          }
-          .preview-tab:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.85); }
-          .preview-tab.selected {
-            background: rgba(201,168,76,0.12);
-            border-color: rgba(201,168,76,0.4);
-            color: #C9A84C;
-          }
-        `}</style>
-
-        <div style={{
-          position: 'fixed', top: 16, left: 16, right: 16, zIndex: 1000,
-          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-          background: '#111', border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 12, padding: '10px 14px',
-        }}>
-          <button
-            className="admin-btn-gold"
-            style={{ padding: '8px 16px', flexShrink: 0 }}
-            onClick={() => setPreviewing(false)}
-          >
-            ← Back to Admin
-          </button>
-
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button
-              className={`preview-tab${previewView === 'dashboard' ? ' selected' : ''}`}
-              onClick={() => setPreviewView('dashboard')}
-            >
-              Overview
-            </button>
-            {belts.map((b) => (
-              <button
-                key={b.slug}
-                className={`preview-tab${previewView === b.slug ? ' selected' : ''}`}
-                onClick={() => setPreviewView(b.slug)}
-              >
-                {b.name}
-              </button>
-            ))}
-          </div>
-
-          <label style={{
-            display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto',
-            fontFamily: 'Inter, sans-serif', fontSize: 12,
-            color: 'rgba(255,255,255,0.6)', flexShrink: 0,
-          }}>
-            <input
-              type="checkbox"
-              checked={previewIncludeDraft}
-              onChange={(e) => setPreviewIncludeDraft(e.target.checked)}
-            />
-            Include unpublished
-          </label>
-        </div>
-
-        {previewView === 'dashboard' ? (
-          <TutorialsIndex
-            tutorials={previewTutorials}
-            belts={belts}
-            userBeltOrder={maxBeltOrder}
-            completedTutorialIds={[]}
-            onSelectBelt={(slug) => setPreviewView(slug)}
-          />
-        ) : (
-          <TutorialDetail
-            belt={previewView}
-            belts={belts}
-            tutorials={previewTutorials}
-            currentUserId={null}
-            completedTutorialIds={[]}
-            onBack={() => setPreviewView('dashboard')}
-            // Admin preview always views as Black Belt so instructor_reference
-            // content — otherwise invisible to regular members — can be QA'd.
-            viewerBeltSlug="black"
-          />
-        )}
-      </>
-    );
   }
 
   return (
@@ -473,7 +337,7 @@ const wushuTutorials = tutorials.filter(
           <h1 style={{
             fontFamily: 'Inter, sans-serif', fontSize: 22,
             fontWeight: 700, color: '#fff', margin: '0 0 4px 0',
-          }}>Tutorials</h1>
+          }}>Sanda Videos</h1>
           <p style={{
             fontFamily: 'Inter, sans-serif', fontSize: 13,
             color: 'rgba(255,255,255,0.35)', margin: 0,
@@ -481,24 +345,19 @@ const wushuTutorials = tutorials.filter(
             {rows.length} videos · {rows.filter((t) => t.published).length} published
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="admin-btn-ghost" onClick={openPreview}>
-            👁 Preview as Member
-          </button>
-          <button className="admin-btn-gold" onClick={startAdd}>+ Add Tutorial</button>
-        </div>
+        <button className="admin-btn-gold" onClick={startAdd}>+ Add Video</button>
       </div>
 
       {/* Filter */}
       <div style={{ marginBottom: 16 }}>
         <select
           className="admin-select"
-          value={filterBelt}
-          onChange={(e) => setFilterBelt(e.target.value)}
+          value={filterDiscipline}
+          onChange={(e) => setFilterDiscipline(e.target.value)}
           style={{ width: 'auto', minWidth: 160 }}
         >
-          <option value="all">All Belts</option>
-          {belts.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+          <option value="all">All Disciplines</option>
+          {disciplines.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select>
       </div>
 
@@ -511,7 +370,7 @@ const wushuTutorials = tutorials.filter(
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Belt</th>
+                <th>Discipline</th>
                 <th>Duration</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -521,23 +380,13 @@ const wushuTutorials = tutorials.filter(
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
-                    No tutorials found
+                    No videos found
                   </td>
                 </tr>
               ) : filtered.map((t) => (
                 <tr key={t.id} className={selected === t.id ? 'row-selected' : ''}>
                   <td style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{t.title}</td>
-                  <td>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: BELT_COLORS[t.belt],
-                        border: t.belt === 'White' ? '1px solid rgba(255,255,255,0.3)' : 'none',
-                        flexShrink: 0,
-                      }} />
-                      {t.belt}
-                    </span>
-                  </td>
+                  <td>{t.discipline}</td>
                   <td style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>{t.duration}</td>
                   <td>
                     <span
@@ -580,25 +429,25 @@ const wushuTutorials = tutorials.filter(
           {!showForm ? (
             <div style={{ textAlign: 'center', padding: '32px 0' }}>
               <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.2)', margin: 0 }}>
-                Select a tutorial to edit, or add a new one
+                Select a video to edit, or add a new one
               </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>
-                {selected ? 'Edit Tutorial' : 'New Tutorial'}
+                {selected ? 'Edit Video' : 'New Video'}
               </p>
 
               <div>
-                <label className="field-label">Belt</label>
-                <select className="admin-select" value={draft.beltId} onChange={(e) => setDraft((d) => ({ ...d, beltId: e.target.value }))}>
-                  {belts.map((b) => <option key={b.id} value={b.id}>{b.name} Belt</option>)}
+                <label className="field-label">Discipline</label>
+                <select className="admin-select" value={draft.disciplineId} onChange={(e) => setDraft((d) => ({ ...d, disciplineId: e.target.value }))}>
+                  {disciplines.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
 
               <div>
                 <label className="field-label">Title</label>
-                <input className="admin-input" placeholder="Tutorial title" value={draft.title} onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))} />
+                <input className="admin-input" placeholder="Video title" value={draft.title} onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))} />
               </div>
 
               <div>
@@ -606,11 +455,6 @@ const wushuTutorials = tutorials.filter(
                 <select className="admin-select" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value as TutorialCategory }))}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
                 </select>
-                {draft.category === 'instructor_reference' && (
-                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10.5, color: 'rgba(255,255,255,0.3)', margin: '4px 0 0' }}>
-                    Only visible to Black Belt members — kept separate from real exam curriculum.
-                  </p>
-                )}
               </div>
 
               <div>
@@ -627,13 +471,13 @@ const wushuTutorials = tutorials.filter(
                   onChange={(e) => setDraft((d) => ({ ...d, videoUrl: e.target.value }))}
                 />
                 <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10.5, color: 'rgba(255,255,255,0.3)', margin: '4px 0 0' }}>
-                  Supports single videos and full playlists. Leave blank for tutorials taught in person.
+                  Supports single videos and full playlists. Leave blank for content taught in person.
                 </p>
               </div>
 
               <div>
                 <label className="field-label">Description — optional</label>
-                <textarea className="admin-textarea" placeholder="What this tutorial covers" value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
+                <textarea className="admin-textarea" placeholder="What this video covers" value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
               </div>
 
               <label className="checkbox-row">
@@ -643,7 +487,7 @@ const wushuTutorials = tutorials.filter(
 
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button className="admin-btn-gold" style={{ flex: 1 }} disabled={!draftValid || saving} onClick={saveDraft}>
-                  {saving ? 'Saving...' : selected ? 'Save Changes' : 'Add Tutorial'}
+                  {saving ? 'Saving...' : selected ? 'Save Changes' : 'Add Video'}
                 </button>
                 <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelForm} disabled={saving}>Cancel</button>
               </div>
@@ -657,7 +501,7 @@ const wushuTutorials = tutorials.filter(
                   onClick={() => handleDelete(selected)}
                   disabled={deletingId === selected}
                 >
-                  {deletingId === selected ? 'Deleting...' : 'Delete Tutorial'}
+                  {deletingId === selected ? 'Deleting...' : 'Delete Video'}
                 </button>
               )}
             </div>
@@ -668,12 +512,13 @@ const wushuTutorials = tutorials.filter(
   );
 }
 
-// Converts the API response's snake_case-adjacent shape (normalized by the
-// tutorials API routes) into the Tutorial type this component uses everywhere.
+// Converts the API response's snake_case-adjacent shape into the Tutorial
+// type this component uses everywhere.
 function toTutorial(raw: any): Tutorial {
   return {
     id: raw.id,
-    beltId: raw.belt_id,
+    beltId: raw.belt_id ?? undefined,
+    disciplineId: raw.discipline_id ?? undefined,
     title: raw.title,
     description: raw.description ?? undefined,
     videoUrl: raw.video_url ?? undefined,

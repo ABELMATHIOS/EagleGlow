@@ -9,8 +9,9 @@ import type { ClassSchedule, ClassTag } from "@/src/types";
 const PREVIEW_DAYS = ["Monday", "Tuesday", "Wednesday"];
 
 const typeColors: Record<string, { bg: string; color: string; dot: string }> = {
-  wushu:   { bg: "rgba(201,168,76,0.1)",  color: "#C9A84C",             dot: "#C9A84C"             },
+  wushu:   { bg: "rgba(201,168,76,0.1)",  color: "#C9A84C",              dot: "#C9A84C"              },
   fitness: { bg: "rgba(99,179,237,0.1)",  color: "rgba(99,179,237,0.9)", dot: "rgba(99,179,237,0.9)" },
+  sanda:   { bg: "rgba(231,76,60,0.1)",   color: "#E74C3C",              dot: "#E74C3C"              },
 };
 
 const TAG_LABELS: Record<ClassTag, string> = {
@@ -188,15 +189,31 @@ export default function SchedulePreview({ classes }: { classes: ClassSchedule[] 
                       flexWrap: "wrap",
                     }}
                   >
-                    {/* Time */}
-                    <div style={{
-                      minWidth: 80, flexShrink: 0,
-                      fontSize: 13, fontWeight: 600,
-                      color: "#C9A84C",
-                      letterSpacing: "0.05em",
-                    }}>
-                      {cls.time}
-                    </div>
+                    <div style={{ minWidth: 90, flexShrink: 0 }}>
+  <div style={{
+    fontSize: 12, fontWeight: 600,
+    color: "#C9A84C", letterSpacing: "0.03em",
+    whiteSpace: 'nowrap',
+  }}>
+    {cls.time}
+  </div>
+  {cls.endTime && (
+    <div style={{
+      fontSize: 11, color: "rgba(201,168,76,0.6)",
+      letterSpacing: "0.03em", whiteSpace: 'nowrap',
+    }}>
+      — {cls.endTime}
+    </div>
+  )}
+  {cls.location && (
+    <div style={{
+      fontSize: 10, color: "rgba(255,255,255,0.3)",
+      marginTop: 2, letterSpacing: "0.03em",
+    }}>
+      {cls.location}
+    </div>
+  )}
+</div>
 
                     {/* Divider */}
                     <div style={{

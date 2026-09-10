@@ -28,7 +28,7 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
   const [form, setForm] = useState({
     // Which program this registration is for. Drives which downstream
     // fields (belt, etc.) apply — see program-conditional rendering below.
-    program: 'wushu' as 'wushu' | 'fitness',
+    program: 'wushu' as 'wushu' | 'fitness' | 'sanda',
     fullName: '',
     email: '',
     phone: '',
@@ -52,14 +52,14 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
     honeypot: '',
   });
 
-  const handleChange = (field: string, value: string) => {
+    const handleChange = (field: string, value: string) => {
     setForm((prev) => {
-      // Fitness has no "existing member" concept yet — it's a brand new
-      // program, so there's no history to ask about. Force registrationType
-      // back to 'new' whenever Fitness is selected, so a leftover
-      // 'existing' pick from Wushu can't sneak through.
-      if (field === 'program' && value === 'fitness') {
-        return { ...prev, program: 'fitness', registrationType: 'new' };
+      // Fitness and Sanda have no "existing member" concept yet —
+      // both are new programs with no history to ask about. Force
+      // registrationType back to 'new' whenever either is selected, so a
+      // leftover 'existing' pick from Wushu can't sneak through.
+      if (field === 'program' && (value === 'fitness' || value === 'sanda')) {
+        return { ...prev, program: value as 'fitness' | 'sanda', registrationType: 'new' };
       }
       return { ...prev, [field]: value };
     });
@@ -512,20 +512,26 @@ export default function Register({ beltOptions: BELT_OPTIONS }: RegisterProps) {
                     textTransform: 'uppercase',
                   }}>Which program are you registering for?</label>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <div
-                      className={`reg-type-btn${form.program === 'wushu' ? ' active' : ''}`}
-                      onClick={() => handleChange('program', 'wushu')}
-                    >
-                      Wushu
-                    </div>
-                    <div
-                      className={`reg-type-btn${form.program === 'fitness' ? ' active' : ''}`}
-                      onClick={() => handleChange('program', 'fitness')}
-                    >
-                      Fitness
-                    </div>
-                  </div>
-                </div>
+  <div
+    className={`reg-type-btn${form.program === 'wushu' ? ' active' : ''}`}
+    onClick={() => handleChange('program', 'wushu')}
+  >
+    Wushu
+  </div>
+  <div
+    className={`reg-type-btn${form.program === 'fitness' ? ' active' : ''}`}
+    onClick={() => handleChange('program', 'fitness')}
+  >
+    Fitness
+  </div>
+  <div
+    className={`reg-type-btn${form.program === 'sanda' ? ' active' : ''}`}
+    onClick={() => handleChange('program', 'sanda')}
+  >
+    Sanda
+  </div>
+</div>
+</div>
 
                 {/* Registration type selector — Wushu only, since Fitness
                     has no existing-member concept yet */}

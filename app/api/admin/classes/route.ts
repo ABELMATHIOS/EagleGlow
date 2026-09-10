@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Forbidden — admin only" }, { status: 403 });
 
   const body = await request.json();
-  const { day, time, title, type, level, instructor, durationMinutes, tag } = body;
+  const { day, time, endTime, title, type, location, level, instructor, tag } = body;
 
-  if (!day || !time || !title || !type || !durationMinutes) {
-    return NextResponse.json({ error: "Day, time, title, type, and duration are required" }, { status: 400 });
+  if (!day || !time || !endTime || !title || !type) {
+    return NextResponse.json({ error: "Day, time, end time, title and type are required" }, { status: 400 });
   }
 
   const adminSupabase = createAdminClient();
@@ -29,11 +29,12 @@ export async function POST(request: NextRequest) {
     .insert({
       day,
       time: time.trim(),
+      end_time: endTime.trim(),
       title: title.trim(),
       type,
+      location: location ?? 'Yerer Gullit',
       level: level?.trim() || null,
       instructor: instructor?.trim() || null,
-      duration_minutes: Number(durationMinutes),
       tag: tag || null,
     })
     .select()

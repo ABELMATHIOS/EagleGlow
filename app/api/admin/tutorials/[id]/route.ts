@@ -18,13 +18,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params;
   const body = await request.json();
-  const { beltId, title, description, videoUrl, durationMinutes, category, order, published } = body;
+  const { beltId, disciplineId, title, description, videoUrl, durationMinutes, category, order, published } = body;
+
+  // If either is explicitly being changed, the other must be explicitly
+  // cleared — prevents a tutorial ending up tagged to both a belt and a
+  // discipline through a partial update.
+  if (beltId !== undefined && beltId && disciplineId === undefined) {
+    return NextResponse.json({ error: "Switching to a belt requires clearing discipline" }, { status: 400 });
+  }
+  if (disciplineId !== undefined && disciplineId && beltId === undefined) {
+    return NextResponse.json({ error: "Switching to a discipline requires clearing belt" }, { status: 400 });
+  }
 
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase
     .from("tutorials")
     .update({
-      ...(beltId !== undefined && { belt_id: beltId }),
+      ...(beltId !== undefined && { belt_id: beltId || null }),
+      ...(disciplineId !== undefined && { discipline_id: disciplineId || null }),
       ...(title !== undefined && { title: title.trim() }),
       ...(description !== undefined && { description: description?.trim() || null }),
       ...(videoUrl !== undefined && { video_url: videoUrl?.trim() || null }),
@@ -41,6 +52,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   revalidatePath("/tutorials");
   revalidatePath("/admin/tutorials");
+  revalidatePath("/admin/sanda-tutorials");
+  revalidatePath("/dashboard/sanda");
 
   return NextResponse.json({ tutorial: data });
 }
@@ -57,6 +70,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   revalidatePath("/tutorials");
   revalidatePath("/admin/tutorials");
+  revalidatePath("/admin/sanda-tutorials");
+  revalidatePath("/dashboard/sanda");
 
   return NextResponse.json({ success: true });
 }

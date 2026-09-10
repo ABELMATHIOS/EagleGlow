@@ -5,25 +5,26 @@ type ClassRow = {
   id: string;
   day: string;
   time: string;
+  end_time: string;
   title: string;
   type: ClassSchedule["type"];
+  location: string;
   level: string | null;
   instructor: string | null;
-  duration_minutes: number;
   created_at: string;
   tag: string | null;
 };
-
 function toClass(row: ClassRow): ClassSchedule {
   return {
     id: row.id,
     day: row.day,
     time: row.time,
+    endTime: row.end_time,
     title: row.title,
     type: row.type,
+    location: row.location ?? 'Yerer Gullit',
     level: row.level ?? undefined,
     instructor: row.instructor ?? undefined,
-    durationMinutes: row.duration_minutes,
     tag: (row.tag as ClassSchedule["tag"]) ?? undefined,
   };
 }

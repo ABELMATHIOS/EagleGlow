@@ -15,17 +15,16 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 const TYPE_COLORS: Record<Type, string> = {
   wushu: '#C9A84C',
   fitness: '#63B3ED',
+  sanda: '#E74C3C',
 };
 
-// Displayed generic label for each type — also used as the auto-filled
-// title sent to the backend, since the classes table expects a title but
-// the admin no longer types a specific program name (those change too
-// often to be worth tracking here — Sanda, Tae Bo, etc. are internal
-// program details, not something the public schedule needs to show).
 const TYPE_LABELS: Record<Type, string> = {
   wushu: 'Wushu',
   fitness: 'Fitness',
+  sanda: 'Sanda',
 };
+
+const LOCATIONS = ['Yerer Gullit', 'Gurd Shola'];
 
 const TAG_LABELS: Record<ClassTag, string> = {
   kids: 'Kids',
@@ -42,9 +41,10 @@ const TAG_COLORS: Record<ClassTag, string> = {
 const EMPTY_FORM = {
   day: 'Monday',
   time: '',
+  endTime: '',
   type: 'wushu' as Type,
+  location: 'Yerer Gullit',
   instructor: '',
-  durationMinutes: '' as string | number,
   tag: '' as '' | ClassTag,
 };
 
@@ -79,14 +79,15 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
   }
 
   function openEditForm(cls: ClassSchedule) {
-    setForm({
-      day: cls.day,
-      time: cls.time,
-      type: cls.type,
-      instructor: cls.instructor ?? '',
-      durationMinutes: cls.durationMinutes,
-      tag: cls.tag ?? '',
-    });
+  setForm({
+    day: cls.day,
+    time: cls.time,
+    endTime: cls.endTime ?? '',
+    type: cls.type,
+    location: cls.location ?? 'Yerer Gullit',
+    instructor: cls.instructor ?? '',
+    tag: cls.tag ?? '',
+  });
     setEditId(cls.id);
     setSaveError(null);
     setShowForm(true);
@@ -94,23 +95,21 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
   }
 
   async function handleSave() {
-    if (!form.time.trim() || !form.durationMinutes) return;
+    if (!form.time.trim() || !form.endTime.trim()) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const payload = {
-        day: form.day,
-        time: form.time.trim(),
-        // Auto-filled from type — the admin form no longer collects a
-        // specific class name, since program names change often and the
-        // public schedule only ever shows the generic type + time-of-day.
-        title: TYPE_LABELS[form.type],
-        type: form.type,
-        level: null,
-        instructor: form.instructor.trim() || null,
-        durationMinutes: Number(form.durationMinutes),
-        tag: form.tag || null,
-      };
+   const payload = {
+  day: form.day,
+  time: form.time.trim(),
+  endTime: form.endTime.trim(),
+  title: TYPE_LABELS[form.type],
+  type: form.type,
+  location: form.location,
+  level: null,
+  instructor: form.instructor.trim() || null,
+  tag: form.tag || null,
+};
 
       if (editId) {
         const { class: updated } = await updateClass(editId, payload);
@@ -327,16 +326,28 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
             </div>
 
             <div>
-              <label className="admin-label">Type</label>
-              <select
-                className="admin-select"
-                value={form.type}
-                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Type }))}
-              >
-                <option value="wushu">Wushu</option>
-                <option value="fitness">Fitness</option>
-              </select>
-            </div>
+  <label className="admin-label">Type</label>
+  <select
+    className="admin-select"
+    value={form.type}
+    onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Type }))}
+  >
+    <option value="wushu">Wushu</option>
+    <option value="fitness">Fitness</option>
+    <option value="sanda">Sanda</option>
+  </select>
+</div>
+
+<div>
+  <label className="admin-label">Location</label>
+  <select
+    className="admin-select"
+    value={form.location}
+    onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+  >
+    {LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+  </select>
+</div>
 
             <div>
               <label className="admin-label">Group / Season (optional)</label>
@@ -363,22 +374,21 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
             </div>
 
             <div>
-              <label className="admin-label">Duration (minutes)</label>
-              <input
-                className="admin-input"
-                type="number"
-                placeholder="e.g. 60"
-                value={form.durationMinutes}
-                onChange={(e) => setForm((f) => ({ ...f, durationMinutes: e.target.value }))}
-              />
-            </div>
+  <label className="admin-label">End Time</label>
+  <input
+    className="admin-input"
+    placeholder="e.g. 8:00 PM"
+    value={form.endTime}
+    onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+  />
+</div>
           </div>
 
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button
               className="admin-btn-gold"
               onClick={handleSave}
-              disabled={!form.time.trim() || !form.durationMinutes || saving}
+              disabled={!form.time.trim() || !form.endTime.trim() || saving}
             >
               {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add Class'}
             </button>
@@ -411,56 +421,62 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
         <table className="classes-table">
           <thead>
             <tr>
-              <th>Day</th>
-              <th>Time</th>
-              <th>Type</th>
-              <th>Group</th>
-              <th>Instructor</th>
-              <th>Duration</th>
-              <th>Actions</th>
-            </tr>
+  <th>Day</th>
+  <th>Time</th>
+  <th>Type</th>
+  <th>Location</th>
+  <th>Group</th>
+  <th>Instructor</th>
+  <th>Time Range</th>
+  <th>Actions</th>
+</tr>
           </thead>
           <tbody>
             {sortedByDayTime.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
-                  No classes found
-                </td>
+                <td colSpan={8} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', padding: '32px 0' }}>
+  No classes found
+</td>
               </tr>
             ) : sortedByDayTime.map((cls) => (
               <React.Fragment key={cls.id}>
                 <tr>
-                  <td>{cls.day}</td>
-                  <td>{cls.time}</td>
-                  <td>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600,
-                      color: TYPE_COLORS[cls.type],
-                      background: `${TYPE_COLORS[cls.type]}18`,
-                      border: `0.5px solid ${TYPE_COLORS[cls.type]}40`,
-                      borderRadius: 100, padding: '3px 9px',
-                      textTransform: 'capitalize',
-                      fontFamily: 'Inter, sans-serif',
-                    }}>
-                      {cls.type}
-                    </span>
-                  </td>
-                  <td>
-                    {cls.tag ? (
-                      <span style={{
-                        fontSize: 10, fontWeight: 600,
-                        color: TAG_COLORS[cls.tag],
-                        background: `${TAG_COLORS[cls.tag]}18`,
-                        border: `0.5px solid ${TAG_COLORS[cls.tag]}40`,
-                        borderRadius: 100, padding: '3px 9px',
-                        fontFamily: 'Inter, sans-serif',
-                      }}>
-                        {TAG_LABELS[cls.tag]}
-                      </span>
-                    ) : '—'}
-                  </td>
-                  <td>{cls.instructor ?? '—'}</td>
-                  <td>{cls.durationMinutes} min</td>
+                 <td>{cls.day}</td>
+<td>{cls.time}</td>
+<td>
+  <span style={{
+    fontSize: 10, fontWeight: 600,
+    color: TYPE_COLORS[cls.type],
+    background: `${TYPE_COLORS[cls.type]}18`,
+    border: `0.5px solid ${TYPE_COLORS[cls.type]}40`,
+    borderRadius: 100, padding: '3px 9px',
+    textTransform: 'capitalize',
+    fontFamily: 'Inter, sans-serif',
+  }}>
+    {TYPE_LABELS[cls.type]}
+  </span>
+</td>
+<td style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+  {cls.location ?? '—'}
+</td>
+<td>
+  {cls.tag ? (
+    <span style={{
+      fontSize: 10, fontWeight: 600,
+      color: TAG_COLORS[cls.tag],
+      background: `${TAG_COLORS[cls.tag]}18`,
+      border: `0.5px solid ${TAG_COLORS[cls.tag]}40`,
+      borderRadius: 100, padding: '3px 9px',
+      fontFamily: 'Inter, sans-serif',
+    }}>
+      {TAG_LABELS[cls.tag]}
+    </span>
+  ) : '—'}
+</td>
+<td>{cls.instructor ?? '—'}</td>
+<td style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
+  {cls.time} — {cls.endTime ?? '—'}
+</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button className="tbl-action-btn" onClick={() => openEditForm(cls)}>Edit</button>
@@ -476,7 +492,7 @@ export default function AdminClasses({ initialClasses }: AdminClassesProps) {
 
                 {deleteConfirm === cls.id && (
                   <tr>
-                    <td colSpan={7} style={{ padding: '0 18px 14px', background: 'transparent' }}>
+                    <td colSpan={8} style={{ padding: '0 18px 14px', background: 'transparent' }}>
                       <div className="delete-confirm">
                         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#E74C3C', margin: 0 }}>
                           Delete this {cls.type} class ({cls.day} {cls.time})? This cannot be undone.
@@ -517,11 +533,12 @@ function toClass(raw: any): ClassSchedule {
     id: raw.id,
     day: raw.day,
     time: raw.time,
+    endTime: raw.end_time ?? '',
     title: raw.title,
     type: raw.type,
+    location: raw.location ?? 'Yerer Gullit',
     level: raw.level ?? undefined,
     instructor: raw.instructor ?? undefined,
-    durationMinutes: raw.duration_minutes,
     tag: raw.tag ?? undefined,
   };
 }

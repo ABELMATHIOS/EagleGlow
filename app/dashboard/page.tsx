@@ -24,6 +24,10 @@ export default async function DashboardPage() {
     redirect('/dashboard/fitness');
   }
 
+  if (user.program === 'sanda') {
+    redirect('/dashboard/sanda');
+  }
+
   const belts = await getBelts();
   const lowestBeltOrder = Math.min(...belts.map((b) => b.order));
   const userBelt = belts.find((b) => b.id === user.beltId);
