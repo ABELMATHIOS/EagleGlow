@@ -15,6 +15,15 @@ const programs = [
     disciplines: ["Taolu", "Sanda", "Sparring"],
   },
   {
+    id: "sanda",
+    tag: "Combat",
+    title: "SANDA",
+    subtitle: "Combat Sports Program",
+    description:
+      "Sanda is a dynamic Chinese combat sport combining punching, kicking, wrestling and takedowns. Our standalone Sanda program is open to all levels focused on real fighting skills.",
+    disciplines: ["Striking", "Kickboxing", "Takedowns"],
+  },
+  {
     id: "fitness",
     tag: "Modern",
     title: "FITNESS",
@@ -59,7 +68,18 @@ function FitnessIcon({ size = 42 }: { size?: number }) {
     </svg>
   );
 }
-
+function SandaIcon({ size = 42 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+      {/* Fist shape */}
+      <rect x="30" y="40" width="40" height="30" rx="8" fill="#E74C3C" />
+      <rect x="30" y="30" width="12" height="20" rx="4" fill="#E74C3C" />
+      <rect x="44" y="28" width="12" height="20" rx="4" fill="#E74C3C" />
+      <rect x="58" y="30" width="12" height="18" rx="4" fill="#E74C3C" />
+      <rect x="22" y="44" width="12" height="18" rx="6" fill="#E74C3C" opacity="0.7" />
+    </svg>
+  );
+}
 export default function OurProgram() {
   const [active, setActive] = useState<string | null>(null);
 
@@ -137,9 +157,11 @@ export default function OurProgram() {
                 pointerEvents: "none",
               }}>
                 {program.id === "wushu"
-                  ? <YinYang size={100} />
-                  : <FitnessIcon size={100} />
-                }
+  ? <YinYang size={100} />
+  : program.id === "sanda"
+  ? <SandaIcon size={100} />
+  : <FitnessIcon size={100} />
+}
               </div>
 
               {/* Top row */}
@@ -178,10 +200,12 @@ export default function OurProgram() {
 
                 {/* Icon — top right */}
                 <div style={{ flexShrink: 0 }}>
-                  {program.id === "wushu"
-                    ? <YinYang size={44} />
-                    : <FitnessIcon size={44} />
-                  }
+                 {program.id === "wushu"
+  ? <YinYang size={44} />
+  : program.id === "sanda"
+  ? <SandaIcon size={44} />
+  : <FitnessIcon size={44} />
+}
                 </div>
               </div>
 
@@ -248,10 +272,16 @@ export default function OurProgram() {
 
       <style>{`
         .program-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .program-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 
         .program-btn {
           display: inline-flex;
