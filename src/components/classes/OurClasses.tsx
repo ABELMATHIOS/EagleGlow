@@ -75,10 +75,10 @@ export default function OurClasses() {
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: '24px', padding: '12px 16px', background: 'rgba(201,168,76,0.08)', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              {/* <div style={{ marginTop: '24px', padding: '12px 16px', background: 'rgba(201,168,76,0.08)', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A84C' }} />
                 <span style={{ fontSize: '12px', color: '#C9A84C', fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Instructor: Master Endale Melse</span>
-              </div>
+              </div> */}
             </div>
 
             {/* Sanda */}
@@ -112,10 +112,10 @@ export default function OurClasses() {
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: '24px', padding: '12px 16px', background: 'rgba(231,76,60,0.08)', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              {/* <div style={{ marginTop: '24px', padding: '12px 16px', background: 'rgba(231,76,60,0.08)', borderRadius: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#E74C3C' }} />
                 <span style={{ fontSize: '12px', color: '#E74C3C', fontFamily: 'Arial, sans-serif', fontWeight: 700 }}>Instructor: Master Endale Melse</span>
-              </div>
+              </div> */}
             </div>
 
             {/* Fitness */}
