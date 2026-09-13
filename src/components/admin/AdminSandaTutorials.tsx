@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Tutorial, TutorialCategory, Discipline } from '@/src/types';
 import { createTutorial, updateTutorial, deleteTutorial as deleteTutorialAction } from '@/src/lib/admin-action';
 import { parseYoutubeUrl, toCanonicalYoutubeUrl } from '@/src/lib/youtube';
+import SandaDashboard from '@/src/components/members/SandaDashboard';
+import SandaDisciplineTutorials from '@/src/components/members/SandaDisciplineTutorials';
 
 const CATEGORIES: Exclude<TutorialCategory, 'general' | 'taolu' | 'kicks' | 'gymnastics' | 'flexibility'>[] = ['sanda', 'instructor_reference'];
 
@@ -58,6 +60,13 @@ export default function AdminSandaTutorials({ initialTutorials, disciplines }: A
   const [deletingId,    setDeletingId]    = useState<string | null>(null);
   const [togglingId,    setTogglingId]    = useState<string | null>(null);
 
+  // --- Preview mode: shows the real member-facing views using live data ---
+  const [previewing,          setPreviewing]          = useState(false);
+  const [previewIncludeDraft, setPreviewIncludeDraft] = useState(false);
+  // 'dashboard' = discipline overview grid, or a discipline slug = that
+  // discipline's video list.
+  const [previewView, setPreviewView] = useState<'dashboard' | string>('dashboard');
+
   const rows = tutorials.map((t) => ({
     id: t.id,
     discipline: t.disciplineId ? (disciplineById.get(t.disciplineId)?.name ?? 'Unknown') : 'Unknown',
@@ -69,6 +78,19 @@ export default function AdminSandaTutorials({ initialTutorials, disciplines }: A
   const filtered = filterDiscipline === 'all' ? rows : rows.filter((t) => t.discipline === filterDiscipline);
   const selectedTutorial = tutorials.find((t) => t.id === selected);
   const showForm = adding || Boolean(selectedTutorial);
+
+  const previewTutorials = previewIncludeDraft
+    ? tutorials
+    : tutorials.filter((t) => t.published);
+
+  // Disciplines with a video count computed from the same preview data set
+  // (published-only or including drafts, matching the toggle) — mirrors
+  // what getDisciplines() computes server-side, but locally so the preview
+  // reflects unsaved toggle state instantly.
+  const previewDisciplines = disciplines.map((d) => ({
+    ...d,
+    videoCount: previewTutorials.filter((t) => t.disciplineId === d.id).length,
+  }));
 
   const startAdd = () => {
     setDraft(EMPTY_DRAFT);
@@ -109,7 +131,7 @@ export default function AdminSandaTutorials({ initialTutorials, disciplines }: A
       const ref = draft.videoUrl.trim() ? parseYoutubeUrl(draft.videoUrl) : null;
       const videoUrl = ref ? toCanonicalYoutubeUrl(ref) : null;
 
-            const payload = {
+      const payload = {
         disciplineId: draft.disciplineId,
         beltId: null, // explicit — satisfies the route's belt/discipline exclusivity guard
         title: draft.title.trim(),
@@ -164,6 +186,102 @@ export default function AdminSandaTutorials({ initialTutorials, disciplines }: A
     } finally {
       setTogglingId(null);
     }
+  }
+
+  function openPreview() {
+    setPreviewView('dashboard');
+    setPreviewing(true);
+  }
+
+  // --- Preview overlay: renders the real member views on top of admin ---
+  if (previewing) {
+    const activeDiscipline = previewView !== 'dashboard'
+      ? disciplines.find((d) => d.slug === previewView)
+      : null;
+
+    return (
+      <>
+        <style>{`
+          .preview-tab {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 100px;
+            cursor: pointer;
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.55);
+          }
+          .preview-tab:hover { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.85); }
+          .preview-tab.selected {
+            background: rgba(201,168,76,0.12);
+            border-color: rgba(201,168,76,0.4);
+            color: #C9A84C;
+          }
+        `}</style>
+
+        <div style={{
+          position: 'fixed', top: 16, left: 16, right: 16, zIndex: 1000,
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          background: '#111', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 12, padding: '10px 14px',
+        }}>
+          <button
+            className="admin-btn-gold"
+            style={{ padding: '8px 16px', flexShrink: 0 }}
+            onClick={() => setPreviewing(false)}
+          >
+            ← Back to Admin
+          </button>
+
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              className={`preview-tab${previewView === 'dashboard' ? ' selected' : ''}`}
+              onClick={() => setPreviewView('dashboard')}
+            >
+              Overview
+            </button>
+            {disciplines.map((d) => (
+              <button
+                key={d.slug}
+                className={`preview-tab${previewView === d.slug ? ' selected' : ''}`}
+                onClick={() => setPreviewView(d.slug)}
+              >
+                {d.name}
+              </button>
+            ))}
+          </div>
+
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto',
+            fontFamily: 'Inter, sans-serif', fontSize: 12,
+            color: 'rgba(255,255,255,0.6)', flexShrink: 0,
+          }}>
+            <input
+              type="checkbox"
+              checked={previewIncludeDraft}
+              onChange={(e) => setPreviewIncludeDraft(e.target.checked)}
+            />
+            Include unpublished
+          </label>
+        </div>
+
+        {previewView === 'dashboard' ? (
+          <SandaDashboard
+            user={{ name: 'Preview Member', status: 'active', createdAt: new Date().toISOString() }}
+            disciplines={previewDisciplines}
+            onSelectDiscipline={(slug) => setPreviewView(slug)}
+          />
+        ) : activeDiscipline ? (
+          <SandaDisciplineTutorials
+            discipline={activeDiscipline}
+            tutorials={previewTutorials.filter((t) => t.disciplineId === activeDiscipline.id)}
+          />
+        ) : null}
+      </>
+    );
   }
 
   return (
@@ -345,7 +463,12 @@ export default function AdminSandaTutorials({ initialTutorials, disciplines }: A
             {rows.length} videos · {rows.filter((t) => t.published).length} published
           </p>
         </div>
-        <button className="admin-btn-gold" onClick={startAdd}>+ Add Video</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="admin-btn-ghost" onClick={openPreview}>
+            👁 Preview as Member
+          </button>
+          <button className="admin-btn-gold" onClick={startAdd}>+ Add Video</button>
+        </div>
       </div>
 
       {/* Filter */}

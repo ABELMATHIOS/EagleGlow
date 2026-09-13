@@ -55,9 +55,14 @@ function SectionLabel({ text }: { text: string }) {
 export default function SandaDashboard({
   user,
   disciplines,
+  onSelectDiscipline,
 }: {
   user: SandaDashboardUser;
   disciplines: DisciplineWithCount[];
+  // Optional — when provided (admin preview mode), clicking a discipline
+  // card calls this instead of doing a real navigation. Without it (real
+  // member use), cards behave as normal links to the actual page.
+  onSelectDiscipline?: (slug: string) => void;
 }) {
   const firstName = user.name.split(' ')[0];
   const joinDate = new Date(user.createdAt).toLocaleDateString('en-US', {
@@ -211,14 +216,26 @@ export default function SandaDashboard({
                       </p>
                     </>
                   );
-                  return hasVideos ? (
+                                    if (!hasVideos) {
+                    return (
+                      <div key={d.id} className="discipline-card empty">
+                        {card}
+                      </div>
+                    );
+                  }
+                  return onSelectDiscipline ? (
+                    <button
+                      key={d.id}
+                      className="discipline-card"
+                      style={{ border: 'none', textAlign: 'left', cursor: 'pointer', width: '100%' }}
+                      onClick={() => onSelectDiscipline(d.slug)}
+                    >
+                      {card}
+                    </button>
+                  ) : (
                     <Link key={d.id} href={`/dashboard/sanda/disciplines/${d.slug}`} className="discipline-card">
                       {card}
                     </Link>
-                  ) : (
-                    <div key={d.id} className="discipline-card empty">
-                      {card}
-                    </div>
                   );
                 })}
               </div>

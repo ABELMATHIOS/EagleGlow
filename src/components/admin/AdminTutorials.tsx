@@ -147,6 +147,7 @@ const wushuTutorials = tutorials.filter(
 
       const payload = {
         beltId: draft.beltId,
+        disciplineId: null,
         title: draft.title.trim(),
         category: draft.category,
         durationMinutes: draft.durationMinutes ? Number(draft.durationMinutes) : null,
