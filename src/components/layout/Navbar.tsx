@@ -86,6 +86,7 @@ export default function Navbar() {
           transition: color 0.2s;
           padding-bottom: 2px;
           letter-spacing: 0.02em;
+          white-space: nowrap;
         }
         .nav-link::after {
           content: '';
@@ -119,6 +120,7 @@ export default function Navbar() {
 
         .btn-register {
           display: inline-flex; align-items: center; justify-content: center;
+          white-space: nowrap;
           padding: 7px 20px; border-radius: 7px;
           font-size: 12.5px; font-weight: 600; letter-spacing: 0.03em;
           text-decoration: none;
@@ -131,6 +133,7 @@ export default function Navbar() {
 
         .btn-login {
           display: inline-flex; align-items: center; justify-content: center;
+          white-space: nowrap;
           padding: 7px 20px; border-radius: 7px;
           font-size: 12.5px; font-weight: 600; letter-spacing: 0.03em;
           text-decoration: none;
@@ -162,11 +165,8 @@ export default function Navbar() {
           opacity: 0.7;
         }
 
-        @media (min-width: 768px) {
+        @media (min-width: 1100px) {
           .tablet-show { display: flex !important; }
-        }
-
-        @media (min-width: 1024px) {
           .desktop-only-link { display: inline !important; }
           .desktop-only-btn { display: inline-flex !important; }
           .mobile-only { display: none !important; }
