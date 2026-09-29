@@ -263,6 +263,17 @@ export default function Dashboard({ user, progress, belts }: { user: DashboardUs
               </div>
               <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
             </Link>
+            <Link href="/dashboard/payment" className="quick-link">
+  <div>
+    <p style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, fontSize: 15, color: '#fff', margin: '0 0 4px' }}>
+      Tuition Payment
+    </p>
+    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+      Payment codes & how to pay
+    </p>
+  </div>
+  <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
+</Link>
           </div>
 
         </div>
