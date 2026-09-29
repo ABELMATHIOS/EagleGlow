@@ -4,7 +4,7 @@ import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AdminNote, NameCorrectionRequest, Status, RegistrationType, Program, User, Belt } from '@/src/types';
-import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword, addMemberNote, deleteMemberNote, setMemberAdminRole, deleteMemberPermanently, switchProgram } from '@/src/lib/admin-action';
+import { approveUser, promoteBelt, updateMemberStatus, reviewNameCorrection, resetMemberPassword, addMemberNote, deleteMemberNote, setMemberAdminRole, deleteMemberPermanently, switchProgram, updateMemberContact } from '@/src/lib/admin-action';
 
 // This admin view keeps its own flat shape (fullName/belt-as-name instead of
 // name/beltId) because that's what this screen's filtering and CSV export
@@ -185,7 +185,8 @@ export default function AdminMembers({ initialMembers, belts, callerRole, initia
   // Contact-info inline editing (per selected member)
   const [editingContact, setEditingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState({ email: '', phone: '', emergencyName: '', emergencyPhone: '' });
-
+  const [contactSaving, setContactSaving] = useState(false);
+const [contactError, setContactError] = useState<string | null>(null);
   // Admin notes — new entry composer
   
 
@@ -490,12 +491,22 @@ const reactivateMember = (id: string) => {
     });
     setEditingContact(true);
   };
-  const cancelEditContact = () => setEditingContact(false);
-  const saveEditContact = (id: string) => {
-    if (!contactValid) return;
+  const cancelEditContact = () => { setEditingContact(false); setContactError(null); };
+
+const saveEditContact = async (id: string) => {
+  if (!contactValid) return;
+  setContactSaving(true);
+  setContactError(null);
+  try {
+    await updateMemberContact(id, contactDraft);
     updateMember(id, { ...contactDraft });
     setEditingContact(false);
-  };
+  } catch (err) {
+    setContactError(err instanceof Error ? err.message : 'Failed to update contact info');
+  } finally {
+    setContactSaving(false);
+  }
+};
     // Admin notes — new entry composer
     // Admin notes — new entry composer
   const [newNote, setNewNote] = useState('');
@@ -1369,9 +1380,12 @@ body: filtered.map((m) => [
                       {contactDraft.emergencyPhone && !PHONE_RE.test(contactDraft.emergencyPhone) && <p className="field-error">Enter a valid phone number.</p>}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="admin-btn-gold" style={{ flex: 1 }} onClick={() => saveEditContact(selectedMember.id)} disabled={!contactValid}>Save</button>
-                      <button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelEditContact}>Cancel</button>
+                      <button className="admin-btn-gold" style={{ flex: 1 }} onClick={() => saveEditContact(selectedMember.id)} disabled={!contactValid || contactSaving}>
+  {contactSaving ? 'Saving...' : 'Save'}
+</button>
+<button className="admin-btn-ghost" style={{ flex: 1 }} onClick={cancelEditContact} disabled={contactSaving}>Cancel</button>
                     </div>
+                    {contactError && <p className="field-error">{contactError}</p>}
                   </div>
                 )}
               </div>

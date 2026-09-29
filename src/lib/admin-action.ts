@@ -354,3 +354,19 @@ export async function deleteDiscipline(id: string): Promise<void> {
     throw new Error(body.error ?? 'Failed to delete discipline');
   }
 }
+
+export async function updateMemberContact(
+  userId: string,
+  contact: { email: string; phone: string; emergencyName: string; emergencyPhone: string }
+) {
+  const res = await fetch(`/api/admin/users/${userId}/contact`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(contact),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Failed to update contact info");
+  }
+  return res.json();
+}

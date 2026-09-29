@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase/server";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/;
 
 export async function PUT(request: NextRequest) {
@@ -16,11 +15,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, phone, emergencyName, emergencyPhone, healthNotes, avatar } = body;
+    // `email` may still be sent by the profile form, but it is ignored on
+    // purpose: the login email lives in Supabase Auth and is changed by an
+    // admin only. See the sync trigger in the database.
+    const { phone, emergencyName, emergencyPhone, healthNotes, avatar } = body;
 
-    if (typeof email !== "string" || !EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-    }
     if (typeof phone !== "string" || !PHONE_RE.test(phone)) {
       return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
     }
@@ -31,13 +30,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Invalid photo" }, { status: 400 });
     }
 
-    // NOTE: this only updates the `users` table row, not Supabase Auth's
-    // own login email — changing the login email is a separate, more
-    // involved flow (auth.updateUser + confirmation). Not handled here.
     const { data, error } = await supabase
       .from("users")
       .update({
-        email,
         phone,
         emergency_contact_name: emergencyName ?? "",
         emergency_contact_phone: emergencyPhone,
