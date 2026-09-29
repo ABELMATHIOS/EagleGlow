@@ -197,9 +197,7 @@ export default function FitnessDashboard({ user }: { user: FitnessDashboardUser 
               </div>
               <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
             </Link>
-            <Link href="/dashboard/rules" className="quick-link">
-              ...Rules & Regulations (leave as is)...
-            </Link>
+            
 
             {/* ADD FROM HERE */}
             <Link href="/dashboard/payment" className="quick-link">
