@@ -23,7 +23,12 @@ export default async function TuitionPaymentPage() {
     getMyStudentCode(authUser.id),
   ]);
 
-  const backHref = user.program === 'fitness' ? '/dashboard/fitness' : '/dashboard';
+  const backHref =
+    user.program === 'fitness'
+      ? '/dashboard/fitness'
+      : user.program === 'sanda'
+        ? '/dashboard/sanda'
+        : '/dashboard';
   const videoId = getYouTubeId(settings.videoUrl);
 
   const codeBox = (label: string, value: string | null, emptyText: string) => (
