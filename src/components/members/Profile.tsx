@@ -12,7 +12,7 @@ type ProfileProps = {
   belts: Belt[];
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const PHONE_RE = /^[+\d][\d\s-]{6,}$/; // starts with + or a digit, at least 7 more digits/spaces/dashes
 
 export default function ProfilePage({ user, belts }: ProfileProps) {
@@ -67,10 +67,10 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
   const avatarColor = isWushu ? currentBelt.color : '#C9A84C';
   const avatarShadow = isWushu ? currentBelt.shadow : 'rgba(201,168,76,0.35)';
 
-  const emailValid = EMAIL_RE.test(draft.email);
+  
   const phoneValid = PHONE_RE.test(draft.phone);
   const emergencyPhoneValid = PHONE_RE.test(draft.emergencyPhone);
-  const profileValid = emailValid && phoneValid && emergencyPhoneValid;
+  const profileValid = phoneValid && emergencyPhoneValid;
 
   const startEditing = () => {
     setDraft(saved);
@@ -746,22 +746,12 @@ export default function ProfilePage({ user, belts }: ProfileProps) {
             </div>
 
             {/* Email */}
-            <div>
-              <label style={{ display: "block", fontSize: "11px", letterSpacing: "2px", color: "#555", textTransform: "uppercase", marginBottom: "8px" }}>Email</label>
-              {editing ? (
-                <>
-                  <input
-                    className={`edit-input${draft.email && !emailValid ? " invalid" : ""}`}
-                    value={draft.email}
-                    onChange={e => setDraft(d => ({ ...d, email: e.target.value }))}
-                    type="email"
-                  />
-                  {draft.email && !emailValid && <p className="field-error">Enter a valid email address.</p>}
-                </>
-              ) : (
-                <p style={{ margin: 0, fontSize: "15px", color: "#ccc", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{saved.email}</p>
-              )}
-            </div>
+            {/* Email — read-only; changed by an admin so the login email stays in sync */}
+<div>
+  <label style={{ display: "block", fontSize: "11px", letterSpacing: "2px", color: "#555", textTransform: "uppercase", marginBottom: "8px" }}>Email</label>
+  <p style={{ margin: 0, fontSize: "15px", color: "#ccc", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>{saved.email}</p>
+  <p className="field-hint">This is your login email. To change it, please contact the club.</p>
+</div>
 
             {/* Phone */}
             <div>
