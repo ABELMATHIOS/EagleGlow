@@ -1,3 +1,4 @@
+
 export type Role             = "guest" | "member" | "admin" | "super_admin";
 export type Status = "pending" | "active" | "graduated" | "serving" | "paused" | "withdrawn" | "served";
 export type RegistrationType = "new" | "existing";
@@ -142,3 +143,11 @@ export type AboutContent = {
   certificates: Certificate[];
   updatedAt: string;
 };
+export interface Announcement {
+  id:        string;
+  title:     string;
+  content:   string;
+  program:   Program | null; // null = all programs
+  published: boolean;
+  createdAt: string;
+}

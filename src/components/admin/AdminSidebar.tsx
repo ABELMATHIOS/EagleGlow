@@ -120,6 +120,16 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+  label: 'Announcements',
+  href: '/admin/announcements',
+  icon: (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/>
+      <path d="M16 8a5 5 0 0 1 0 8"/>
+    </svg>
+  ),
+},
     {
     label: 'Payment Codes',
     href: '/admin/payment-codes',

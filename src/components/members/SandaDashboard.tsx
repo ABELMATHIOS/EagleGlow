@@ -1,7 +1,7 @@
 'use client';
-
+import AnnouncementBanner from '@/src/components/members/AnnouncementBanner';
 import Link from 'next/link';
-import { Status } from '@/src/types';
+import { Status,Announcement } from '@/src/types';
 import type { DisciplineWithCount } from '@/src/lib/disciplines';
 
 // Sanda equivalent of Dashboard.tsx. No belt card (disciplines aren't
@@ -56,9 +56,11 @@ export default function SandaDashboard({
   user,
   disciplines,
   onSelectDiscipline,
+  announcements = [],
 }: {
   user: SandaDashboardUser;
   disciplines: DisciplineWithCount[];
+  announcements?: Announcement[];
   // Optional — when provided (admin preview mode), clicking a discipline
   // card calls this instead of doing a real navigation. Without it (real
   // member use), cards behave as normal links to the actual page.
@@ -155,7 +157,11 @@ export default function SandaDashboard({
               Welcome back, <span style={{ color: '#C9A84C' }}>{firstName}</span>
             </h1>
           </div>
+          
 
+          <AnnouncementBanner items={announcements} />
+
+          {/* Stat cards — two only: no belt card for Sanda */}
           {/* Stat cards — two only: no belt card for Sanda */}
           <div className="dash-grid" style={{ marginBottom: 40 }}>
             <div className="stat-card">

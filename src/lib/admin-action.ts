@@ -370,3 +370,49 @@ export async function updateMemberContact(
   }
   return res.json();
 }
+// ── Announcements CRUD — used by AdminAnnouncements.tsx ──
+import type { Announcement, Program } from '@/src/types';
+
+export type AnnouncementInput = {
+  title: string;
+  content: string;
+  program: Program | null; // null = all programs
+  published: boolean;
+};
+
+export async function createAnnouncement(input: AnnouncementInput): Promise<Announcement> {
+  const res = await fetch('/api/admin/announcements', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to create announcement');
+  }
+  return res.json();
+}
+
+export async function patchAnnouncement(
+  id: string,
+  patch: Partial<AnnouncementInput>
+): Promise<Announcement> {
+  const res = await fetch(`/api/admin/announcements/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to update announcement');
+  }
+  return res.json();
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+  const res = await fetch(`/api/admin/announcements/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to delete announcement');
+  }
+}

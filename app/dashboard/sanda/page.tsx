@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import SandaDashboard from '@/src/components/members/SandaDashboard';
 import { getCurrentUser } from '@/src/lib/get-current-user';
 import { getDisciplines } from '@/src/lib/disciplines';
+import { getPublishedAnnouncements } from '@/src/lib/announcements';
 
 export default async function SandaDashboardPage() {
   const user = await getCurrentUser();
@@ -16,7 +17,10 @@ export default async function SandaDashboardPage() {
     redirect('/dashboard');
   }
 
-  const disciplines = await getDisciplines();
+  const [disciplines, announcements] = await Promise.all([
+    getDisciplines(),
+    getPublishedAnnouncements(user.program),
+  ]);
 
   return (
     <SandaDashboard
@@ -26,6 +30,7 @@ export default async function SandaDashboardPage() {
         createdAt: user.createdAt,
       }}
       disciplines={disciplines}
+      announcements={announcements}
     />
   );
 }

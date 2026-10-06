@@ -1,7 +1,7 @@
 'use client';
-
+import AnnouncementBanner from '@/src/components/members/AnnouncementBanner';
 import Link from 'next/link';
-import { Status, Belt } from '@/src/types';
+import { Status, Belt, Announcement } from '@/src/types';
 
 // Real user data comes in as a prop from app/dashboard/page.tsx (a Server
 // Component that fetches it via getCurrentUser()). `belts` is likewise a
@@ -41,7 +41,7 @@ const STATUS_COLOR: Record<Status, string> = {
   serving:   '#9B59B6',
   paused:    '#F39C12',
   withdrawn: 'rgba(255,255,255,0.4)',
-  served:    'Served',
+  served:    '#3498DB',
 };
 
 function SectionLabel({ text }: { text: string }) {
@@ -61,7 +61,7 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function Dashboard({ user, progress, belts }: { user: DashboardUser; progress: DashboardProgress; belts: Belt[] }) {
+export default function Dashboard({ user, progress, belts, announcements = [] }: { user: DashboardUser; progress: DashboardProgress; belts: Belt[]; announcements?: Announcement[] }) {
   const firstName = user.name.split(' ')[0];
   const currentBelt = belts.find((b) => b.id === user.beltId) ?? belts[0];
   // Black belt's stored color is near-black, which is invisible against
@@ -139,7 +139,11 @@ export default function Dashboard({ user, progress, belts }: { user: DashboardUs
               Welcome back, <span style={{ color: '#C9A84C' }}>{firstName}</span>
             </h1>
           </div>
+                    
 
+          <AnnouncementBanner items={announcements} />
+
+          {/* Stat cards */}
           {/* Stat cards */}
           <div className="dash-grid" style={{ marginBottom: 40 }}>
             <div className="stat-card">

@@ -8,7 +8,12 @@ import { createClient } from '@/src/lib/supabase/client';
 // and compresses the image in the browser BEFORE upload, so even a huge
 // original becomes a small file (typically under ~500KB) almost instantly,
 // regardless of the person's phone or connection speed.
-async function compressImage(file: File, maxDimension = 1200, quality = 0.82): Promise<File> {
+// Avatars only ever display at ~110px (see Profile.tsx), so there's no
+// reason to keep 1200px/0.82-quality originals around — 500px/0.75 still
+// looks sharp even on retina screens, and cuts typical file size from
+// ~300-500KB down to roughly 40-80KB. At that size, 1GB of free-tier
+// storage holds on the order of 10,000+ member photos instead of ~2,000.
+async function compressImage(file: File, maxDimension = 500, quality = 0.75): Promise<File> {
   // Only compress actual images — anything else (shouldn't happen given
   // the <input accept="image/*">, but be safe) passes through untouched.
   if (!file.type.startsWith('image/')) return file;

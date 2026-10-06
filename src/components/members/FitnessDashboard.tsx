@@ -1,7 +1,7 @@
 'use client';
-
+import AnnouncementBanner from '@/src/components/members/AnnouncementBanner';
 import Link from 'next/link';
-import { Status } from '@/src/types';
+import { Status, Announcement } from '@/src/types';
 
 // Fitness equivalent of Dashboard.tsx. No belt card, no tutorial progress —
 // neither exists for the Fitness program yet. "Continue Training" becomes
@@ -52,7 +52,7 @@ function SectionLabel({ text }: { text: string }) {
   );
 }
 
-export default function FitnessDashboard({ user }: { user: FitnessDashboardUser }) {
+export default function FitnessDashboard({ user, announcements = [] }: { user: FitnessDashboardUser; announcements?: Announcement[] }) {
   const firstName = user.name.split(' ')[0];
   const joinDate = new Date(user.createdAt).toLocaleDateString('en-US', {
     month: 'long',
@@ -122,7 +122,11 @@ export default function FitnessDashboard({ user }: { user: FitnessDashboardUser 
               Welcome back, <span style={{ color: '#C9A84C' }}>{firstName}</span>
             </h1>
           </div>
+          
 
+          <AnnouncementBanner items={announcements} />
+
+          {/* Stat cards — two only: no belt card for Fitness */}
           {/* Stat cards — two only: no belt card for Fitness */}
           <div className="dash-grid" style={{ marginBottom: 40 }}>
             <div className="stat-card">

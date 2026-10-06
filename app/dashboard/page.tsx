@@ -3,6 +3,7 @@ import Dashboard from '@/src/components/members/Dashboard';
 import { getCurrentUser } from '@/src/lib/get-current-user';
 import { getBelts } from '@/src/lib/belts';
 import { getProgressSummary } from '@/src/lib/tutorial-progress';
+import { getPublishedAnnouncements } from '@/src/lib/announcements';
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -33,7 +34,10 @@ export default async function DashboardPage() {
   const userBelt = belts.find((b) => b.id === user.beltId);
   const userBeltOrder = userBelt?.order ?? lowestBeltOrder;
 
-  const progress = await getProgressSummary(userBeltOrder);
+  const [progress, announcements] = await Promise.all([
+    getProgressSummary(userBeltOrder),
+    getPublishedAnnouncements(user.program),
+  ]);
 
   return (
     <Dashboard
@@ -46,6 +50,7 @@ export default async function DashboardPage() {
       }}
       progress={progress}
       belts={belts}
+      announcements={announcements}
     />
   );
 }

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import FitnessDashboard from '@/src/components/members/FitnessDashboard';
 import { getCurrentUser } from '@/src/lib/get-current-user';
+import { getPublishedAnnouncements } from '@/src/lib/announcements';
 
 export default async function FitnessDashboardPage() {
   const user = await getCurrentUser();
@@ -15,6 +16,8 @@ export default async function FitnessDashboardPage() {
     redirect('/dashboard');
   }
 
+  const announcements = await getPublishedAnnouncements(user.program);
+
   return (
     <FitnessDashboard
       user={{
@@ -22,6 +25,7 @@ export default async function FitnessDashboardPage() {
         status: user.status,
         createdAt: user.createdAt,
       }}
+      announcements={announcements}
     />
   );
 }
