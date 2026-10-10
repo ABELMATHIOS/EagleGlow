@@ -2,7 +2,7 @@
 import AnnouncementBanner from '@/src/components/members/AnnouncementBanner';
 import Link from 'next/link';
 import { Status, Announcement } from '@/src/types';
-
+   import InstallButton from '@/src/components/pwa/InstallButton';
 // Fitness equivalent of Dashboard.tsx. No belt card, no tutorial progress —
 // neither exists for the Fitness program yet. "Continue Training" becomes
 // a static "Coming Soon" card instead of a working link; "My Profile"
@@ -215,6 +215,7 @@ export default function FitnessDashboard({ user, announcements = [] }: { user: F
               </div>
               <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
             </Link>
+               <InstallButton />
           </div>
 
         </div>

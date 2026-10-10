@@ -9,7 +9,14 @@ import { getHomeContent } from "@/src/lib/home-content";
 import { getMomentPhotos } from "@/src/lib/gallery";
 import { createClient } from "@/src/lib/supabase/server";
 
+export const metadata = {
+  title: "EagleGlow | Wushu & Fitness Center",
+};
+
 export default async function Home() {
+  // The full name stays on the home page for search engines; every other page
+// without its own title (dashboard, profile...) falls back to just "EagleGlow".
+
   const supabase = await createClient();
 
   const [classes, home, momentPhotos, aboutResult] = await Promise.all([
