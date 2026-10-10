@@ -3,7 +3,7 @@ import AnnouncementBanner from '@/src/components/members/AnnouncementBanner';
 import Link from 'next/link';
 import { Status,Announcement } from '@/src/types';
 import type { DisciplineWithCount } from '@/src/lib/disciplines';
-
+   import InstallButton from '@/src/components/pwa/InstallButton';
 // Sanda equivalent of Dashboard.tsx. No belt card (disciplines aren't
 // a progression ladder), no single tutorial-progress bar — "Continue
 // Training" opens into a grid of disciplines instead of one link, each
@@ -286,6 +286,7 @@ export default function SandaDashboard({
               </div>
               <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
             </Link>
+               <InstallButton />
           </div>
 
         </div>

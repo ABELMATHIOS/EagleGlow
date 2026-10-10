@@ -2,7 +2,7 @@
 import AnnouncementBanner from '@/src/components/members/AnnouncementBanner';
 import Link from 'next/link';
 import { Status, Belt, Announcement } from '@/src/types';
-
+   import InstallButton from '@/src/components/pwa/InstallButton';
 // Real user data comes in as a prop from app/dashboard/page.tsx (a Server
 // Component that fetches it via getCurrentUser()). `belts` is likewise a
 // real prop (from getBelts()) — this component previously looked belts up
@@ -268,6 +268,7 @@ export default function Dashboard({ user, progress, belts, announcements = [] }:
               <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
             </Link>
             <Link href="/dashboard/payment" className="quick-link">
+
   <div>
     <p style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, fontSize: 15, color: '#fff', margin: '0 0 4px' }}>
       Tuition Payment
@@ -278,6 +279,7 @@ export default function Dashboard({ user, progress, belts, announcements = [] }:
   </div>
   <span style={{ color: '#C9A84C', fontSize: 20 }}>→</span>
 </Link>
+   <InstallButton />
           </div>
 
         </div>

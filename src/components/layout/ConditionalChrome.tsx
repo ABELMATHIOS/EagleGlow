@@ -3,7 +3,8 @@
 import { usePathname } from 'next/navigation';
 import Navbar from '@/src/components/layout/Navbar';
 import Footer from '@/src/components/layout/Footer';
-
+import PwaRegister from "@/src/components/pwa/PwaRegister";
+import InstallPrompt from "@/src/components/pwa/InstallPrompt";
 export default function ConditionalChrome({
   children,
 }: {
@@ -21,7 +22,10 @@ export default function ConditionalChrome({
   return (
     <>
       <Navbar />
-      <main className="pt-[68px]">{children}</main>
+      <main className="pt-[68px]">
+  <InstallPrompt />
+  {children}
+</main>
       <Footer />
     </>
   );
